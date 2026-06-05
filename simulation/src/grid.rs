@@ -1,10 +1,11 @@
 use haje::calculus::laplacian;
 use haje::complex::Complex;
 use haje::vec::vec2::Vec2;
+use rayon::prelude::{IntoParallelRefIterator, IntoParallelRefMutIterator};
 use crate::material::Material;
 
 pub struct Grid<const LENGTH: usize, const HEIGHT: usize> {
-    field: [[f64 ;HEIGHT]; LENGTH],
+    field: [[f64; HEIGHT]; LENGTH],
     material: Material
 }
 
@@ -18,26 +19,28 @@ impl<const LENGTH: usize, const HEIGHT: usize> Grid<LENGTH, HEIGHT> {
     }
 
     pub fn run(&mut self, iterations: usize) {
-        let rows = self.field.len();
-        let cols = self.field[0].len();
+        let mut next_field = self.field;
 
         for _ in 0..iterations {
-            let mut complex_grid = Vec::with_capacity(rows);
+            let complex_grid = self.field.map(|row| {
+                row.map(|val| Complex::new(val, 0.0))
+            });
 
-            for row in self.field.iter() {
-                let mut complex_row = Vec::with_capacity(cols);
-                for &val in row.iter() {
-                    complex_row.push(Complex::new(val, 0.0));
-                }
-                complex_grid.push(complex_row);
-            }
+            next_field
+                .par_iter_mut()
+                .zip(self.field.par_iter())
+                .enumerate()
+                .for_each(|(i, (next_row, current_row))| {
+                    for (j, cell) in next_row.iter_mut().enumerate() {
+                        let pos = Vec2 { x: i, y: j };
 
-            for i in 0..rows {
-                for j in 0..cols {
-                    let result = laplacian(&Vec2 { x: i, y: j }, &complex_grid);
-                    self.field[i][j] = result.real;
-                }
-            }
+                        let result = laplacian(&pos, &complex_grid);
+
+                        *cell = result.real;
+                    }
+                });
+
+            self.field = next_field;
         }
     }
 }
