@@ -2,19 +2,20 @@ use haje::calculus::laplacian;
 use haje::complex::Complex;
 use haje::vec::vec2::Vec2;
 use rayon::prelude::{IntoParallelRefIterator, IntoParallelRefMutIterator};
-use crate::material::Material;
 
 pub struct Grid<const LENGTH: usize, const HEIGHT: usize> {
     field: [[f64; HEIGHT]; LENGTH],
-    material: Material
+    source_mask: [[bool; HEIGHT]; LENGTH],
+    alpha_mask: [[f64; HEIGHT]; LENGTH]
 }
 
 impl<const LENGTH: usize, const HEIGHT: usize> Grid<LENGTH, HEIGHT> {
 
-    pub fn new(material: Material, base_temperature: f64) -> Self<LENGTH, HEIGHT> {
+    pub fn new(base_temperature: f64, source_cells: [[bool; HEIGHT]; LENGTH], barrier: [[f64; HEIGHT]; LENGTH]) -> Self<LENGTH, HEIGHT> {
         Self {
             field: [[base_temperature; LENGTH]; HEIGHT],
-            material
+            source_mask: source_cells,
+            alpha_mask: barrier
         }
     }
 
@@ -33,8 +34,14 @@ impl<const LENGTH: usize, const HEIGHT: usize> Grid<LENGTH, HEIGHT> {
                 .for_each(|(i, (next_row, current_row))| {
                     for (j, cell) in next_row.iter_mut().enumerate() {
                         let pos = Vec2 { x: i, y: j };
+                        if self.source_mask[i][j] {
+                            continue
+                        }
 
-                        let result = laplacian(&pos, &complex_grid);
+                        let alpha = self.alpha_mask[i][j];
+                        let current = complex_grid[i][j];
+
+                        let result = current + alpha * (laplacian(&pos, &complex_grid) - current);
 
                         *cell = result.real;
                     }
