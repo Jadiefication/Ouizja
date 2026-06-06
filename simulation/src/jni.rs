@@ -1,6 +1,6 @@
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
 use jni::errors::{Error, ThrowRuntimeExAndDefault};
-use jni::objects::{JByteArray, JClass, JDoubleArray, JFloatArray, JObject, JObjectArray};
+use jni::objects::{JBooleanArray, JByteArray, JClass, JDoubleArray, JFloatArray, JObject, JObjectArray};
 use jni::sys::{jbyte, jdouble, jfloat, jint, jlong};
 use crate::grid::Grid;
 
@@ -8,7 +8,8 @@ use crate::grid::Grid;
 pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_createSim<'caller>(
     _class: JClass,
     mut env_unowned: EnvUnowned<'caller>,
-    sourceMask: JDoubleArray,
+    temps: JDoubleArray,
+    sourceMask: JBooleanArray,
     alphaMask: JDoubleArray,
     length: jint,
     height: jint
@@ -18,12 +19,14 @@ pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_createSim<'caller>(
             panic!("Invalid size")
         }
         let mut alpha_mask = vec![0.0f64; (length * height) as usize];
-        let mut source_mask = vec![0.0f64; (length * height) as usize];
+        let mut temperatures = vec![0.0f64; (length * height) as usize];
+        let mut source_mask = vec![false; (length * height) as usize];
 
         alphaMask.get_region(env, 0, &mut alpha_mask)?;
+        temps.get_region(env, 0, &mut temperatures)?;
         sourceMask.get_region(env, 0, &mut source_mask)?;
 
-        let grid = Grid::new(source_mask, alpha_mask, length as usize, height as usize);
+        let grid = Grid::new(temperatures, source_mask, alpha_mask, length as usize, height as usize);
         let g_box = Box::new(grid);
 
         return Ok::<i64, Error>(Box::into_raw(g_box) as i64);

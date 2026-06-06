@@ -10,13 +10,14 @@ pub struct Grid {
     height: usize,
 
     pub temperature: Vec<f64>,
+    sources_mask: Vec<bool>,
     alpha_mask: Vec<f64>,
     complex_grid: Vec<Vec<Complex>>,
 }
 
 impl Grid {
 
-    pub fn new(temperature: Vec<f64>, alpha_mask: Vec<f64>, length: usize, height: usize) -> Self {
+    pub fn new(temperature: Vec<f64>, sources_mask: Vec<bool>, alpha_mask: Vec<f64>, length: usize, height: usize) -> Self {
         let mut complex_grid = vec![vec![Complex::zero(); height]; length];
         temperature.iter().enumerate().for_each(|(i, &temp)| {
             let x = i / height;
@@ -28,6 +29,7 @@ impl Grid {
             length,
             height,
             temperature,
+            sources_mask,
             alpha_mask,
             complex_grid
         }
@@ -55,14 +57,14 @@ impl Grid {
                 .for_each(|(i, ((next_row, source_row), alpha_row))| {
 
                     for (j, cell) in next_row.iter_mut().enumerate() {
-                        if source_row[j] != 0.0 {
-                            continue;
+                        let flat_idx = i * self.height + j;
+                        if self.sources_mask[flat_idx] {
+                            continue
                         }
 
                         let pos = Vec2 { x: i, y: j };
                         let alpha = alpha_row[j];
-
-                        let flat_idx = i * self.height + j;
+                        
                         let current = self.temperature[flat_idx];
 
                         let result = current + alpha * (laplacian(&pos, &self.complex_grid).re - current);
