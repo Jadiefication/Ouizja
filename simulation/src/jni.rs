@@ -3,6 +3,7 @@ use jni::errors::{Error, ThrowRuntimeExAndDefault};
 use jni::objects::{JBooleanArray, JClass, JDoubleArray, JObject, JObjectArray};
 use jni::sys::{jint, jlong};
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
+use crate::mask::Mask;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
@@ -31,7 +32,18 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         sourceMask.get_region(env, 0, &mut source_mask)?;
         nonSolidMask.get_region(env, 0, &mut non_solid_mask)?;
 
-        let grid = Grid::new(temperatures, source_mask, alpha_mask, length as usize, height as usize, non_solid_mask);
+        let masks = alpha_mask
+            .into_iter()
+            .zip(source_mask)
+            .zip(non_solid_mask)
+            .map(|((alpha, source), not_solid)| Mask {
+                alpha,
+                source,
+                not_solid,
+            })
+            .collect::<Vec<Mask>>();
+
+        let grid = Grid::new(temperatures, masks, length as usize, height as usize);
         let g_box = Box::new(grid);
 
         return Ok::<i64, Error>(Box::into_raw(g_box) as i64);
