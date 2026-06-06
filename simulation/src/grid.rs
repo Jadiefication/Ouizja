@@ -9,16 +9,18 @@ pub struct Grid {
     pub temperature: Vec<f64>,
     sources_mask: Vec<bool>,
     alpha_mask: Vec<f64>,
+    non_solid_mask: Vec<bool>
 }
 
 impl Grid {
-    pub fn new(temperature: Vec<f64>, sources_mask: Vec<bool>, alpha_mask: Vec<f64>, length: usize, height: usize) -> Self {
+    pub fn new(temperature: Vec<f64>, sources_mask: Vec<bool>, alpha_mask: Vec<f64>, length: usize, height: usize, non_solid_mask: Vec<bool>) -> Self {
         Self {
             length,
             height,
             temperature,
             sources_mask,
             alpha_mask,
+            non_solid_mask
         }
     }
 
@@ -56,7 +58,17 @@ impl Grid {
                         let down_val  = source_row[down_j];
                         let up_val    = source_row[up_j];
 
-                        let laplacian = left_val + right_val + up_val + down_val - (center_val * 4.0);
+                        let buoyancy_force = if self.non_solid_mask[flat_idx] {
+                            if down_val > center_val {
+                                (down_val - center_val) * 0.1
+                            } else {
+                                0.0
+                            }
+                        } else {
+                            0.0
+                        };
+
+                        let laplacian = left_val + right_val + up_val + down_val - (center_val * 4.0) + buoyancy_force;
                         *cell = center_val + (alpha * delta_t) * laplacian;
                     }
                 });
