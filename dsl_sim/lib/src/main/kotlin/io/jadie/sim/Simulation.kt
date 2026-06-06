@@ -17,13 +17,7 @@ class Simulation {
     }
 
     fun globalMaterial(material: Material) {
-        alphaMask = buildList {
-            for (i in 0..height) {
-                for (j in 0..length) {
-                    this[i * height + j] = material
-                }
-            }
-        }.toMutableList()
+        alphaMask = MutableList(length * height) { material }
     }
 
     fun material(
@@ -34,40 +28,28 @@ class Simulation {
         toY: Int
     ) {
         if (alphaMask.size != length * height) {
-            alphaMask = buildList {
-                for (i in 0..height) {
-                    for (j in 0..length) {
-                        this[i * height + j] = if (
-                            i in fromX..toX && j in fromY..toY) {
-                            material
-                        } else {
-                            Material.BARRIER
-                        }
-                    }
-                }
-            }.toMutableList()
-        } else {
-            alphaMask.mapIndexed { index, currentAlpha ->
+            alphaMask = MutableList(length * height) { index ->
                 val x = index / height
                 val y = index % height
-
                 if (x in fromX..toX && y in fromY..toY) {
-                    material.diffusivity
+                    material
                 } else {
-                    currentAlpha
+                    Material.BARRIER
+                }
+            }
+        } else {
+            for (index in alphaMask.indices) {
+                val x = index / height
+                val y = index % height
+                if (x in fromX..toX && y in fromY..toY) {
+                    alphaMask[index] = material
                 }
             }
         }
     }
 
     fun globalTemperature(temp: Double) {
-        temps = buildList {
-            for (i in 0..height) {
-                for (j in 0..length) {
-                    this[i * height + j] = temp
-                }
-            }
-        }.toMutableList()
+        temps = MutableList(length * height) { temp }
     }
 
     fun temp(
@@ -76,29 +58,19 @@ class Simulation {
         y: Int
     ) {
         if (temps.size != length * height) {
-            temps = buildList {
-                for (i in 0..height) {
-                    for (j in 0..length) {
-                        this[i * height + j] = if (
-                            i == x && j == y
-                        ) {
-                            temp
-                        } else {
-                            0.0
-                        }
-                    }
-                }
-            }.toMutableList()
-        } else {
-            temps.mapIndexed { index, currentTemp ->
+            temps = MutableList(length * height) { index ->
                 val xIndex = index / height
                 val yIndex = index % height
-
                 if (xIndex == x && yIndex == y) {
                     temp
                 } else {
-                    currentTemp
+                    0.0
                 }
+            }
+        } else {
+            val index = x * height + y
+            if (index in temps.indices) {
+                temps[index] = temp
             }
         }
     }
@@ -117,25 +89,21 @@ class Simulation {
         y: Int
     ) {
         if (sourceMask.size != length * height) {
-            sourceMask = buildList {
-                for (i in 0..height) {
-                    for (j in 0..length) {
-                        this[i * height + j] = i == x && j == y
-                    }
-                }
-            }.toMutableList()
-        } else {
-            sourceMask.mapIndexed { index, currentVal ->
+            sourceMask = MutableList(length * height) { index ->
                 val xIndex = index / height
                 val yIndex = index % height
-
-                if (xIndex == x && yIndex == y) {
-                    true
-                } else {
-                    currentVal
-                }
+                xIndex == x && yIndex == y
+            }
+        } else {
+            val index = x * height + y
+            if (index in sourceMask.indices) {
+                sourceMask[index] = true
             }
         }
+    }
+
+    fun size(): Int {
+        return length * height
     }
 }
 
@@ -155,6 +123,7 @@ data class BuiltSim(
         if (height != other.height) return false
         if (length != other.length) return false
         if (!alphaMask.contentEquals(other.alphaMask)) return false
+        if (!sourceMask.contentEquals(other.sourceMask)) return false
         if (!temps.contentEquals(other.temps)) return false
 
         return true
@@ -164,6 +133,7 @@ data class BuiltSim(
         var result = height
         result = 31 * result + length
         result = 31 * result + alphaMask.contentHashCode()
+        result = 31 * result + sourceMask.contentHashCode()
         result = 31 * result + temps.contentHashCode()
         return result
     }
@@ -186,6 +156,37 @@ data class BuiltSim(
 fun simulate(builder: Simulation.() -> Unit): BuiltSim {
     val simulation = Simulation()
     simulation.builder()
+    val targetSize = simulation.size()
+    if (simulation.sourceMask.size != targetSize) {
+        val oldMask = simulation.sourceMask
+        simulation.sourceMask = MutableList(targetSize) { index ->
+            if (index < oldMask.size) {
+                oldMask[index]
+            } else {
+                false
+            }
+        }
+    }
+    if (simulation.alphaMask.size != targetSize) {
+        val oldMask = simulation.alphaMask
+        simulation.alphaMask = MutableList(targetSize) { index ->
+            if (index < oldMask.size) {
+                oldMask[index]
+            } else {
+                Material.BARRIER
+            }
+        }
+    }
+    if (simulation.temps.size != targetSize) {
+        val oldMask = simulation.temps
+        simulation.temps = MutableList(targetSize) { index ->
+            if (index < oldMask.size) {
+                oldMask[index]
+            } else {
+                0.0
+            }
+        }
+    }
     val built = BuiltSim(
         simulation.height,
         simulation.length,

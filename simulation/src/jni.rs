@@ -1,18 +1,18 @@
-use jni::{jni_sig, jni_str, EnvUnowned, JValue};
-use jni::errors::{Error, ThrowRuntimeExAndDefault};
-use jni::objects::{JBooleanArray, JByteArray, JClass, JDoubleArray, JFloatArray, JObject, JObjectArray};
-use jni::sys::{jbyte, jdouble, jfloat, jint, jlong};
 use crate::grid::Grid;
+use jni::errors::{Error, ThrowRuntimeExAndDefault};
+use jni::objects::{JBooleanArray, JClass, JDoubleArray, JObject, JObjectArray};
+use jni::sys::{jint, jlong};
+use jni::{jni_sig, jni_str, EnvUnowned, JValue};
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_createSim<'caller>(
-    _class: JClass,
+pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
+    _class: JClass,
     temps: JDoubleArray,
     sourceMask: JBooleanArray,
     alphaMask: JDoubleArray,
     length: jint,
-    height: jint
+    height: jint,
 ) -> jlong {
     env_unowned.with_env(|env| {
         if length < 1 || height < 1 {
@@ -34,13 +34,13 @@ pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_createSim<'caller>(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_runSim<'caller>(
-    _class: JClass,
+pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
+    _class: JClass,
     iterations: jlong,
     pointer: jlong,
     length: jint,
-    height: jint
+    height: jint,
 ) -> JObject<'caller> {
     env_unowned.with_env(|env| -> jni::errors::Result<JObject> {
         if length < 1 || height < 1 {
@@ -72,18 +72,18 @@ pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_runSim<'caller>(
             jni_sig!("([[D)V"),
             &[
                 JValue::Object(&jni_arr)
-            ]
+            ],
         )?;
 
-        return Ok(object)
+        return Ok(object);
     }).resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_freeSim<'caller>(
-    _class: JClass,
+pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_freeSim(
     _env_unowned: EnvUnowned,
-    pointer: jlong
+    _class: JClass,
+    pointer: jlong,
 ) {
     let raw_pointer = pointer as *mut Grid;
 

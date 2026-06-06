@@ -46,21 +46,21 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-val nativeResourceDir = layout.projectDirectory.dir("src/main/resources/native").asFile.absolutePath
+val nativeResourceDir = layout.projectDirectory.dir("src/main/resources/native")
 
 val buildNative by tasks.registering {
-    notCompatibleWithConfigurationCache("Runs external process (cargo)")
-
+    notCompatibleWithConfigurationCache("Uses Cargo")
     description = "Build the Rust native library and copy it into resources/native."
     doLast {
         val isJitpack = System.getenv("JITPACK") == "true"
         val os = System.getProperty("os.name").lowercase()
 
+        // Match only the native Linux target on JitPack.
         val targets =
             if (isJitpack && os.contains("linux")) {
                 listOf("x86_64-unknown-linux-gnu")
             } else {
-                listOf("")
+                listOf("") // Standard local compilation
             }
 
         val simulationDir = File("../simulation")
@@ -75,11 +75,12 @@ val buildNative by tasks.registering {
             if (code != 0) throw GradleException("Command failed: ${cmd.joinToString(" ")} (exit $code)")
         }
 
+        // Setup the target array cleanly
         if (isJitpack && os.contains("linux")) {
             try {
                 runCommand("rustup", "target", "add", "x86_64-unknown-linux-gnu")
             } catch (e: Exception) {
-                println("WARNING: Failed to add Rust target: ${e.message}")
+                logger.warn("Failed to add Rust target: ${e.message}")
             }
         }
 
@@ -101,18 +102,18 @@ val buildNative by tasks.registering {
 
             val builtLibName = "${prefix}Ouizja$suffix"
             val targetDir = if (target.isNotEmpty())
-                "${simulationDir.path}/target/$target/release"
+                "../${simulationDir.path}/target/$target/release"
             else
-                "${simulationDir.path}/target/release"
-
-            val sourceFile = File("$targetDir/$builtLibName")
+                "../${simulationDir.path}/target/release"
+            val sourceFile = file("$targetDir/$builtLibName")
 
             if (sourceFile.exists()) {
-                val destDir = File(nativeResourceDir)
-                destDir.mkdirs()
-                sourceFile.copyTo(File(destDir, sourceFile.name), overwrite = true)
+                copy {
+                    from(sourceFile)
+                    into(nativeResourceDir)
+                }
             } else {
-                println("WARNING: Could not find built library at ${sourceFile.absolutePath}")
+                logger.warn("Could not find built library at ${sourceFile.absolutePath}")
             }
         }
     }
