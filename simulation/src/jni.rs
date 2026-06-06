@@ -9,8 +9,8 @@ pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_createSim<'caller>(
     _class: JClass,
     mut env_unowned: EnvUnowned<'caller>,
     baseTemperature: jfloat,
-    sourceMask: JObjectArray,
-    alphaMask: JObjectArray,
+    sourceMask: JDoubleArray,
+    alphaMask: JDoubleArray,
     length: jint,
     height: jint
 ) -> jlong {
@@ -20,25 +20,9 @@ pub unsafe extern "system" fn Java_io_jadieOuizjaLoader_createSim<'caller>(
         }
         let mut alpha_mask = vec![0.0f64; (length * height) as usize];
         let mut source_mask = vec![0.0f64; (length * height) as usize];
-
-        for i in 0..(length as usize) {
-            let inner_a_obj = alphaMask.get_element(env, i)?;
-            let inner_s_obj = sourceMask.get_element(env, i)?;
-
-            let inner_a_arr: JDoubleArray = unsafe { JDoubleArray::from_raw(env, inner_a_obj.into_raw()) };
-            let inner_s_arr: JDoubleArray = unsafe { JDoubleArray::from_raw(env, inner_s_obj.into_raw()) };
-
-            let mut temp_s_row = vec![0.0f64; height as usize];
-            let mut temp_a_row = vec![0.0f64; height as usize];
-
-            inner_s_arr.get_region(env, 0, &mut temp_s_row)?;
-            inner_a_arr.get_region(env, 0, &mut temp_a_row)?;
-
-            for j in 0..(height as usize) {
-                alpha_mask[i * (height as usize) + j] = temp_a_row[j];
-                source_mask[i * (height as usize) + j] = temp_s_row[j];
-            }
-        }
+        
+        alphaMask.get_region(env, 0, &mut alpha_mask)?;
+        sourceMask.get_region(env, 0, &mut source_mask)?;
 
         let grid = Grid::new(baseTemperature as f32, source_mask, alpha_mask, length as usize, height as usize);
         let g_box = Box::new(grid);
