@@ -259,7 +259,7 @@ class SimulationTest {
             globalMaterial(Material.WOOD) // default
             material(Material.IRON, 0, 1, 0, 3) // Left half
         }
-
+        
         // Check Iron area
         for (x in 0..1) {
             for (y in 0..3) {
@@ -272,5 +272,74 @@ class SimulationTest {
                 assertEquals(Material.WOOD.diffusivity, sim.alphaMask[x * 4 + y])
             }
         }
+    }
+
+    @Test
+    fun testWindDsl() {
+        val sim = simulate {
+            grid(2, 2)
+            wind(1.0 to 2.0)
+            wind(-0.5 to 0.0)
+        }
+        assertContentEquals(doubleArrayOf(1.0, 2.0, -0.5, 0.0), sim.winds)
+    }
+
+    @Test
+    fun testNonSolidMaskGeneration() {
+        val sim = simulate {
+            grid(2, 1)
+            material(Material.IRON, 0, 0, 0, 0) // Solid
+            material(Material.AIR, 1, 1, 0, 0)  // Gas (Non-solid)
+        }
+        // index 0: Iron (Solid) -> false
+        // index 1: Air (Gas) -> true
+        assertContentEquals(booleanArrayOf(false, true), sim.nonSolidMask)
+    }
+
+    @Test
+    fun testWindAdvection() {
+        // Heat should move with the wind
+        val simWithWind = simulate {
+            grid(5, 1)
+            globalMaterial(Material.COPPER)
+            globalTemperature(0.0)
+            temp(100.0, 2, 0)
+            source(2, 2) // Fixed heat in the middle
+            wind(10.0 to 0.0) // Strong wind to the right (+x)
+        }
+        
+        val result = simWithWind.run(5)
+        
+        // Cell to the right (3,0) should be warmer than cell to the left (1,0) due to advection
+        assertTrue(result.field[3][0] > result.field[1][0], "Heat should drift right with positive x-wind")
+    }
+
+    @Test
+    fun testBuoyancy() {
+        // In a non-solid, heat should rise (buoyancy)
+        // Note: in this simulation's logic (grid.rs), buoyancy adds to the cell if the cell below is hotter.
+        // So cell (x, y) becomes hotter if (x, y-1) is hotter.
+        val sim = simulate {
+            grid(1, 5)
+            globalMaterial(Material.AIR) // Non-solid
+            globalTemperature(0.0)
+            temp(100.0, 0, 0) // Bottom cell is hot
+            source(0, 0)
+        }
+        
+        val result = sim.run(5)
+        
+        // Compare with a solid where buoyancy is disabled
+        val simSolid = simulate {
+            grid(1, 5)
+            globalMaterial(Material.IRON) // Solid
+            globalTemperature(0.0)
+            temp(100.0, 0, 0)
+            source(0, 0)
+        }
+        val resultSolid = simSolid.run(5)
+        
+        // The cell above the source (0,1) should be hotter in AIR than in IRON because of buoyancy
+        assertTrue(result.field[0][1] > resultSolid.field[0][1], "Buoyancy should increase heat transfer upwards in non-solids")
     }
 }
