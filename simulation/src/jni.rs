@@ -5,6 +5,7 @@ use jni::objects::{JBooleanArray, JClass, JDoubleArray, JObject, JObjectArray};
 use jni::sys::{jint, jlong};
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
 use crate::mask::Mask;
+use crate::wind::Wind;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
@@ -36,11 +37,14 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         nonSolidMask.get_region(env, 0, &mut non_solid_mask)?;
         winds.get_region(env, 0, &mut partial_winds)?;
 
-        let (chunks, remainder) = partial_winds.as_chunks::<2>();
-        if !remainder.is_empty() {
-            panic!("Remainder isn't 2^N")
+        let (w_chunks, w_remainder) = partial_winds.as_chunks::<3>();
+        if !w_remainder.is_empty() {
+            panic!("Remainder isn't 3^N")
         }
-        let actual_winds: Vec<Vec2<f64>> = chunks.into_iter().map(|it| Vec2 { x: it[0], y: it[1] }).collect();
+        let actual_winds: Vec<Wind> = w_chunks.into_iter().map(|it| Wind {
+            force: Vec2 { x: it[0], y: it[1] },
+            temp: it[2]
+        }).collect();
 
         let masks = alpha_mask
             .into_iter()

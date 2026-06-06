@@ -104,9 +104,10 @@ class Simulation {
     }
 
     fun wind(
-        force: Pair<Double, Double>
+        force: Pair<Double, Double>,
+        temp: Double = 0.0
     ) {
-        winds.addAll(listOf(force.first, force.second))
+        winds.addAll(listOf(force.first, force.second, temp))
     }
 
     fun size(): Int {
@@ -121,7 +122,7 @@ data class BuiltSim(
     val sourceMask: BooleanArray,
     val nonSolidMask: BooleanArray,
     val winds: DoubleArray,
-    val temps: DoubleArray
+    val temps: DoubleArray,
 ) {
     fun run(iterations: Long): SimState {
         val sim = OuizjaLoader.createSim(
@@ -207,7 +208,7 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
         simulation.sourceMask.toBooleanArray(),
         simulation.alphaMask.map { it.type != Type.SOLID }.toBooleanArray(),
         simulation.winds.toDoubleArray(),
-        simulation.temps.toDoubleArray(),
+        simulation.temps.toDoubleArray()
     )
     return built
 }
@@ -227,7 +228,7 @@ fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
         oldState.sourceMask,
         oldState.nonSolidMask,
         oldState.winds,
-        newField
+        newField,
     )
     return newSim
 }
