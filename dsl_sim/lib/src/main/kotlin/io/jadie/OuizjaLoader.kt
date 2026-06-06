@@ -57,8 +57,9 @@ class OuizjaLoader {
             temps: DoubleArray,
             sourceMask: BooleanArray,
             alphaMask: DoubleArray,
+            nonSolidMask: BooleanArray,
             length: Int,
-            height: Int
+            height: Int,
         ): Long
 
         @JvmStatic

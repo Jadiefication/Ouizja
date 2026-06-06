@@ -112,8 +112,24 @@ data class BuiltSim(
     val length: Int,
     val alphaMask: DoubleArray,
     val sourceMask: BooleanArray,
+    val nonSolidMask: BooleanArray,
     val temps: DoubleArray
 ) {
+    fun run(iterations: Long): SimState {
+        val sim = OuizjaLoader.createSim(
+            temps,
+            sourceMask,
+            alphaMask,
+            nonSolidMask,
+            length,
+            height,
+        )
+
+        val state = OuizjaLoader.runSim(iterations, sim, length, height)
+        OuizjaLoader.freeSim(sim)
+        return state
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -124,6 +140,7 @@ data class BuiltSim(
         if (length != other.length) return false
         if (!alphaMask.contentEquals(other.alphaMask)) return false
         if (!sourceMask.contentEquals(other.sourceMask)) return false
+        if (!nonSolidMask.contentEquals(other.nonSolidMask)) return false
         if (!temps.contentEquals(other.temps)) return false
 
         return true
@@ -134,22 +151,9 @@ data class BuiltSim(
         result = 31 * result + length
         result = 31 * result + alphaMask.contentHashCode()
         result = 31 * result + sourceMask.contentHashCode()
+        result = 31 * result + nonSolidMask.contentHashCode()
         result = 31 * result + temps.contentHashCode()
         return result
-    }
-
-    fun run(iterations: Long): SimState {
-        val sim = OuizjaLoader.createSim(
-            temps,
-            sourceMask,
-            alphaMask,
-            length,
-            height
-        )
-
-        val state = OuizjaLoader.runSim(iterations, sim, length, height)
-        OuizjaLoader.freeSim(sim)
-        return state
     }
 }
 
@@ -192,6 +196,7 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
         simulation.length,
         simulation.alphaMask.map { it.diffusivity }.toDoubleArray(),
         simulation.sourceMask.toBooleanArray(),
+        simulation.alphaMask.map { it.type != Type.SOLID }.toBooleanArray(),
         simulation.temps.toDoubleArray(),
     )
     return built
@@ -210,6 +215,7 @@ fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
         oldState.length,
         oldState.alphaMask,
         oldState.sourceMask,
+        oldState.nonSolidMask,
         newField
     )
     return newSim

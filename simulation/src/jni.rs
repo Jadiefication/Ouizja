@@ -11,6 +11,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     temps: JDoubleArray,
     sourceMask: JBooleanArray,
     alphaMask: JDoubleArray,
+    nonSolidMask: JBooleanArray,
     length: jint,
     height: jint,
 ) -> jlong {
@@ -18,15 +19,19 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         if length < 1 || height < 1 {
             panic!("Invalid size")
         }
-        let mut alpha_mask = vec![0.0f64; (length * height) as usize];
-        let mut temperatures = vec![0.0f64; (length * height) as usize];
-        let mut source_mask = vec![false; (length * height) as usize];
+        let size = (length * height) as usize;
+
+        let mut alpha_mask = vec![0.0f64; size];
+        let mut temperatures = vec![0.0f64; size];
+        let mut source_mask = vec![false; size];
+        let mut non_solid_mask = vec![false; size];
 
         alphaMask.get_region(env, 0, &mut alpha_mask)?;
         temps.get_region(env, 0, &mut temperatures)?;
         sourceMask.get_region(env, 0, &mut source_mask)?;
+        nonSolidMask.get_region(env, 0, &mut non_solid_mask)?;
 
-        let grid = Grid::new(temperatures, source_mask, alpha_mask, length as usize, height as usize);
+        let grid = Grid::new(temperatures, source_mask, alpha_mask, length as usize, height as usize, non_solid_mask);
         let g_box = Box::new(grid);
 
         return Ok::<i64, Error>(Box::into_raw(g_box) as i64);
