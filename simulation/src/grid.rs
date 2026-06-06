@@ -9,34 +9,37 @@ pub struct Grid {
     length: usize,
     height: usize,
 
-    pub field: Vec<f32>,
-    source_mask: Vec<f64>,
+    pub temperature: Vec<f64>,
     alpha_mask: Vec<f64>,
     complex_grid: Vec<Vec<Complex>>,
 }
 
 impl Grid {
 
-    pub fn new(base_temp: f32, source_mask: Vec<f64>, alpha_mask: Vec<f64>, length: usize, height: usize) -> Self {
-        let complex_grid = vec![vec![Complex::new(base_temp as f64, 0.0); height]; length];
+    pub fn new(temperature: Vec<f64>, alpha_mask: Vec<f64>, length: usize, height: usize) -> Self {
+        let mut complex_grid = vec![vec![Complex::zero(); height]; length];
+        temperature.iter().enumerate().for_each(|(i, &temp)| {
+            let x = i / height;
+            let y = i % height;
+            complex_grid[x][y] = Complex::new(temp, 0.0)
+        });
 
         Self {
             length,
             height,
-            field: vec![base_temp; length * height],
-            source_mask,
+            temperature,
             alpha_mask,
             complex_grid
         }
     }
 
     pub fn run(&mut self, iterations: usize) {
-        let mut next_field = self.field.clone();
+        let mut next_field = self.temperature.clone();
 
         for _ in 0..iterations {
             self.complex_grid
                 .par_iter_mut()
-                .zip(self.field.par_iter())
+                .zip(self.temperature.par_iter())
                 .for_each(|(complex_row, field)| {
                     for complex_cell in complex_row.iter_mut() {
                         complex_cell.re = *field as f64;
@@ -46,11 +49,10 @@ impl Grid {
 
             next_field
                 .par_chunks_exact_mut(self.height)
-                .zip(self.field.par_chunks_exact(self.height))
-                .zip(self.source_mask.par_chunks_exact(self.height))
+                .zip(self.temperature.par_chunks_exact(self.height))
                 .zip(self.alpha_mask.par_chunks_exact(self.height))
                 .enumerate()
-                .for_each(|(i, (((next_row, current_row), source_row), alpha_row))| {
+                .for_each(|(i, ((next_row, source_row), alpha_row))| {
 
                     for (j, cell) in next_row.iter_mut().enumerate() {
                         if source_row[j] != 0.0 {
@@ -61,15 +63,15 @@ impl Grid {
                         let alpha = alpha_row[j];
 
                         let flat_idx = i * self.height + j;
-                        let current = self.field[flat_idx] as f64;
+                        let current = self.temperature[flat_idx];
 
                         let result = current + alpha * (laplacian(&pos, &self.complex_grid).re - current);
 
-                        *cell = result as f32;
+                        *cell = result;
                     }
                 });
 
-            self.field.copy_from_slice(&next_field);
+            self.temperature.copy_from_slice(&next_field);
         }
     }
 
