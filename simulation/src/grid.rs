@@ -1,3 +1,4 @@
+use haje::vec::vec2::Vec2;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
@@ -8,16 +9,18 @@ pub struct Grid {
     height: usize,
 
     pub temperature: Vec<f64>,
-    pub masks: Vec<Mask>
+    masks: Vec<Mask>,
+    winds: Vec<Vec2<f64>>
 }
 
 impl Grid {
-    pub fn new(temperature: Vec<f64>, masks: Vec<Mask>, length: usize, height: usize) -> Self {
+    pub fn new(temperature: Vec<f64>, masks: Vec<Mask>, length: usize, height: usize, winds: Vec<Vec2<f64>>) -> Self {
         Self {
             length,
             height,
             temperature,
-            masks
+            masks,
+            winds
         }
     }
 
@@ -31,6 +34,10 @@ impl Grid {
             .fold(0.0f64, f64::max);
         let delta_t = if max_alpha > 0.0 { 0.25 / max_alpha } else { 1.0 };
         let mut next_field = self.temperature.clone();
+        let mut wind = Vec2 { x: 0.0, y: 0.0 };
+        self.winds.iter().for_each(|&it|
+            wind = wind + it
+        );
 
         for _ in 0..iterations {
             next_field
@@ -59,6 +66,12 @@ impl Grid {
                         let down_val  = source_row[down_j];
                         let up_val    = source_row[up_j];
 
+                        let source_x_temp = if wind.x > 0.0 { left_val } else { right_val };
+                        let source_y_temp = if wind.y > 0.0 { down_val } else { up_val };
+
+                        let advection_x = wind.x.abs() * (source_x_temp - center_val) * delta_t;
+                        let advection_y = wind.y.abs() * (source_y_temp - center_val) * delta_t;
+
                         let buoyancy_force = if self.masks[flat_idx].not_solid {
                             if down_val > center_val {
                                 (down_val - center_val) * 0.1
@@ -69,8 +82,8 @@ impl Grid {
                             0.0
                         };
 
-                        let laplacian = left_val + right_val + up_val + down_val - (center_val * 4.0) + buoyancy_force;
-                        *cell = center_val + (alpha * delta_t) * laplacian;
+                        let laplacian = left_val + right_val + up_val + down_val - (center_val * 4.0);
+                        *cell = center_val + (alpha * delta_t) * laplacian + buoyancy_force + advection_x + advection_y;
                     }
                 });
 

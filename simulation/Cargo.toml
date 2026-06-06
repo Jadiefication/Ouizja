@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+haje = "0.3.0"
 jni = "0.22.4"
 rayon = "1.12.0"
 
