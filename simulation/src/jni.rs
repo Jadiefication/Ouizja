@@ -1,3 +1,4 @@
+use haje::vec::vec2::Vec2;
 use crate::grid::Grid;
 use jni::errors::{Error, ThrowRuntimeExAndDefault};
 use jni::objects::{JBooleanArray, JClass, JDoubleArray, JObject, JObjectArray};
@@ -13,6 +14,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     sourceMask: JBooleanArray,
     alphaMask: JDoubleArray,
     nonSolidMask: JBooleanArray,
+    winds: JDoubleArray,
     length: jint,
     height: jint,
 ) -> jlong {
@@ -26,11 +28,19 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         let mut temperatures = vec![0.0f64; size];
         let mut source_mask = vec![false; size];
         let mut non_solid_mask = vec![false; size];
+        let mut partial_winds = vec![0.0f64; winds.len(env)?];
 
         alphaMask.get_region(env, 0, &mut alpha_mask)?;
         temps.get_region(env, 0, &mut temperatures)?;
         sourceMask.get_region(env, 0, &mut source_mask)?;
         nonSolidMask.get_region(env, 0, &mut non_solid_mask)?;
+        winds.get_region(env, 0, &mut partial_winds)?;
+
+        let (chunks, remainder) = partial_winds.as_chunks::<2>();
+        if !remainder.is_empty() {
+            panic!("Remainder isn't 2^N")
+        }
+        let actual_winds: Vec<Vec2<f64>> = chunks.into_iter().map(|it| Vec2 { x: it[0], y: it[1] }).collect();
 
         let masks = alpha_mask
             .into_iter()
@@ -43,7 +53,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
             })
             .collect::<Vec<Mask>>();
 
-        let grid = Grid::new(temperatures, masks, length as usize, height as usize);
+        let grid = Grid::new(temperatures, masks, length as usize, height as usize, actual_winds);
         let g_box = Box::new(grid);
 
         return Ok::<i64, Error>(Box::into_raw(g_box) as i64);

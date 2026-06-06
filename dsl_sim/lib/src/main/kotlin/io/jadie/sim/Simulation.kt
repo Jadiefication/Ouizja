@@ -5,11 +5,12 @@ import io.jadie.SimState
 
 class Simulation {
 
-    var length = 256
-    var height = 256
-    var alphaMask = mutableListOf<Material>()
-    var temps = mutableListOf<Double>()
-    var sourceMask = mutableListOf<Boolean>()
+    internal var length = 256
+    internal var height = 256
+    internal var alphaMask = mutableListOf<Material>()
+    internal var temps = mutableListOf<Double>()
+    internal var sourceMask = mutableListOf<Boolean>()
+    internal val winds = mutableListOf<Double>()
 
     fun grid(length: Int, height: Int) {
         this.length = length
@@ -102,6 +103,12 @@ class Simulation {
         }
     }
 
+    fun wind(
+        force: Pair<Double, Double>
+    ) {
+        winds.addAll(listOf(force.first, force.second))
+    }
+
     fun size(): Int {
         return length * height
     }
@@ -113,6 +120,7 @@ data class BuiltSim(
     val alphaMask: DoubleArray,
     val sourceMask: BooleanArray,
     val nonSolidMask: BooleanArray,
+    val winds: DoubleArray,
     val temps: DoubleArray
 ) {
     fun run(iterations: Long): SimState {
@@ -121,6 +129,7 @@ data class BuiltSim(
             sourceMask,
             alphaMask,
             nonSolidMask,
+            winds,
             length,
             height,
         )
@@ -197,6 +206,7 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
         simulation.alphaMask.map { it.diffusivity }.toDoubleArray(),
         simulation.sourceMask.toBooleanArray(),
         simulation.alphaMask.map { it.type != Type.SOLID }.toBooleanArray(),
+        simulation.winds.toDoubleArray(),
         simulation.temps.toDoubleArray(),
     )
     return built
@@ -216,6 +226,7 @@ fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
         oldState.alphaMask,
         oldState.sourceMask,
         oldState.nonSolidMask,
+        oldState.winds,
         newField
     )
     return newSim

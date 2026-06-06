@@ -58,6 +58,7 @@ class OuizjaLoader {
             sourceMask: BooleanArray,
             alphaMask: DoubleArray,
             nonSolidMask: BooleanArray,
+            winds: DoubleArray,
             length: Int,
             height: Int,
         ): Long
