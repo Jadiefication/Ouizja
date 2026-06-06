@@ -4,18 +4,18 @@ use haje::vec::vec2::Vec2;
 use rayon::prelude::{IntoParallelRefIterator, IntoParallelRefMutIterator};
 
 pub struct Grid<const LENGTH: usize, const HEIGHT: usize> {
-    field: [[f64; HEIGHT]; LENGTH],
-    source_mask: [[bool; HEIGHT]; LENGTH],
+    pub field: [[f32; HEIGHT]; LENGTH],
+    source_mask: [[f64; HEIGHT]; LENGTH],
     alpha_mask: [[f64; HEIGHT]; LENGTH]
 }
 
 impl<const LENGTH: usize, const HEIGHT: usize> Grid<LENGTH, HEIGHT> {
 
-    pub fn new(base_temperature: f64, source_cells: [[bool; HEIGHT]; LENGTH], barrier: [[f64; HEIGHT]; LENGTH]) -> Self<LENGTH, HEIGHT> {
+    pub fn new(base_temperature: f32, source_mask: [[f64; HEIGHT]; LENGTH], alpha_mask: [[f64; HEIGHT]; LENGTH]) -> Self<LENGTH, HEIGHT> {
         Self {
             field: [[base_temperature; LENGTH]; HEIGHT],
-            source_mask: source_cells,
-            alpha_mask: barrier
+            source_mask,
+            alpha_mask
         }
     }
 
@@ -24,7 +24,7 @@ impl<const LENGTH: usize, const HEIGHT: usize> Grid<LENGTH, HEIGHT> {
 
         for _ in 0..iterations {
             let complex_grid = self.field.map(|row| {
-                row.map(|val| Complex::new(val, 0.0))
+                row.map(|val| Complex::new(val as f64, 0.0))
             });
 
             next_field
@@ -34,7 +34,7 @@ impl<const LENGTH: usize, const HEIGHT: usize> Grid<LENGTH, HEIGHT> {
                 .for_each(|(i, (next_row, current_row))| {
                     for (j, cell) in next_row.iter_mut().enumerate() {
                         let pos = Vec2 { x: i, y: j };
-                        if self.source_mask[i][j] {
+                        if self.source_mask[i][j] != 0 {
                             continue
                         }
 
