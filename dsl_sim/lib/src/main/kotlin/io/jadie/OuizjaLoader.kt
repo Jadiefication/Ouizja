@@ -54,9 +54,8 @@ class OuizjaLoader {
 
         @JvmStatic
         external fun createSim(
-            baseTemperature: Float,
-            sourceMask: FloatArray,
-            alphaMask: FloatArray,
+            sourceMask: DoubleArray,
+            alphaMask: DoubleArray,
             length: Int,
             height: Int
         ): Long

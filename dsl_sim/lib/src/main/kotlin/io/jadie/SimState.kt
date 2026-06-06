@@ -1,7 +1,7 @@
 package io.jadie
 
 data class SimState(
-    val field: Array<FloatArray>
+    val field: Array<DoubleArray>
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
