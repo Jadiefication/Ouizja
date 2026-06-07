@@ -2,8 +2,9 @@ use haje::vec::vec2::Vec2;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-use crate::mask::Mask;
-use crate::wind::Wind;
+use crate::sim::mask::Mask;
+use crate::sim::mask::Status::Solid;
+use crate::sim::wind::Wind;
 
 pub struct Grid {
     length: usize,
@@ -74,7 +75,7 @@ impl Grid {
                         let mut advection_x = 0.0;
                         let mut advection_y = 0.0;
 
-                        if masks[j].not_solid {
+                        if masks[j].status != Solid {
                             let source_x_temp = if global_wind.x > 0.0 {
                                 if i == 0 { external_wind_temp } else { left_val }
                             } else {
@@ -88,7 +89,7 @@ impl Grid {
                                 0.0
                             };
 
-                            let total_wind_y = global_wind.y + buoyancy_wind;
+                            let total_wind_y: f64 = global_wind.y + buoyancy_wind;
 
                             let source_y_temp = if total_wind_y > 0.0 {
                                 if j == 0 { external_wind_temp } else { down_val }
