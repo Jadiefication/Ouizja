@@ -98,4 +98,46 @@ impl Cell {
         let excess_energy = self.enthalpy - milestones.h_vaporized;
         props.boiling_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_gas.unwrap_or(1.0))
     }
+
+    pub fn get_temperature(&self) -> Option<f64> {
+        let props = self.mask.material.thermal_properties();
+        let milestones = EnthalpyMilestones::from_properties(&props);
+        let is_sublimating_material = self.mask.material == Air || self.mask.material == Water;
+        let skip_liquid = is_sublimating_material && (props.melting_point == props.boiling_point);
+
+        if skip_liquid {
+            let total_sublimation_latent = props.latent_fusion.unwrap_or(0.0) + props.latent_vaporization.unwrap_or(0.0);
+            let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
+
+            if self.enthalpy < props.melting_point? {
+                return Some(self.enthalpy / props.specific_heat_solid)
+            }
+            if props.melting_point? < self.enthalpy && self.enthalpy < h_sublimation_end {
+                return Some(props.melting_point?)
+            }
+            if self.enthalpy >= h_sublimation_end {
+                return Some(props.boiling_point? + ((self.enthalpy - h_sublimation_end) / props.specific_heat_gas?))
+            }
+        }
+
+        match self.mask.status {
+            Solid => Some(self.enthalpy / props.specific_heat_solid),
+            Fusing { .. } => Some(props.melting_point?),
+            Liquid => Some(props.melting_point? + ((self.enthalpy - props.latent_fusion?) / props.specific_heat_liquid?)),
+            Vaporizing { .. } => Some(props.boiling_point?),
+            Gas => Some(props.boiling_point? + ((self.enthalpy - props.latent_vaporization?) / props.specific_heat_gas?))
+        }
+    }
+
+    pub fn get_capacity(&self) -> f64 {
+        let props = self.mask.material.thermal_properties();
+        match self.mask.status {
+            Solid => props.specific_heat_solid,
+            Liquid => props.specific_heat_liquid.unwrap_or(props.specific_heat_solid),
+            Gas => props.specific_heat_gas.unwrap_or(props.specific_heat_solid),
+
+            Fusing { .. } => props.specific_heat_solid,
+            Vaporizing { .. } => props.specific_heat_liquid.unwrap_or(props.specific_heat_solid),
+        }
+    }
 }
