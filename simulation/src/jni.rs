@@ -5,6 +5,7 @@ use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObj
 use jni::sys::{jint, jlong};
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
 use crate::sim::cell::cell::Cell;
+use crate::sim::cell::quantum::Quantum;
 use crate::sim::mask::Mask;
 use crate::sim::mask::Status::{Gas, Liquid, Solid};
 use crate::sim::material::Material;
@@ -18,6 +19,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     temps: JDoubleArray,
     sourceMask: JBooleanArray,
     materialMask: JIntArray,
+    quantumMask: JDoubleArray,
     winds: JDoubleArray,
     length: jint,
     height: jint,
@@ -32,34 +34,52 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         let mut source_mask = vec![false; size];
         let mut partial_winds = vec![0.0f64; winds.len(env)?];
         let mut material_mask = vec![0; size];
+        let mut quantum_mask = vec![0.0; size];
 
         temps.get_region(env, 0, &mut temperatures)?;
         sourceMask.get_region(env, 0, &mut source_mask)?;
         winds.get_region(env, 0, &mut partial_winds)?;
-        materialMask.get_region(env, 0, &mut  material_mask)?;
+        materialMask.get_region(env, 0, &mut material_mask)?;
+        quantumMask.get_region(env, 0, &mut quantum_mask)?;
 
         let (w_chunks, w_remainder) = partial_winds.as_chunks::<3>();
         if !w_remainder.is_empty() {
-            panic!("Remainder isn't 3^N")
+            panic!("Remainder of winds isn't 3^N")
         }
         let actual_winds: Vec<Wind> = w_chunks.into_iter().map(|it| Wind {
             force: Vec2 { x: it[0], y: it[1] },
             temp: it[2]
         }).collect();
 
+        let (q_chunks, q_remainder) = quantum_mask.as_chunks::<3>();
+        if !q_remainder.is_empty() {
+            panic!("Remainder of quantum isn't 3^N")
+        }
+
         let cells = temperatures
             .into_iter()
             .zip(source_mask)
             .zip(material_mask)
-            .map(|((temp, source), id)| {
+            .zip(q_chunks)
+            .map(|(((temp, source), id), quantum)| {
                 let material = Material::find_by_id(id as u8);
                 let status = if material == Air { Gas } else if material == Water { Liquid } else { Solid };
                 let props = material.thermal_properties();
+                let quantum = if quantum[0] == 1.0 {
+                    Some(Quantum {
+                        gamma: 1.0,
+                        kappa: quantum[1],
+                        index: quantum[2] as i32,
+                    })
+                } else {
+                    None
+                };
                 let mask = Mask {
                     status,
                     source,
                     alpha: props.diffusivity,
                     material,
+                    quantum,
                 };
                 let enthalpy = Cell::calculate_forward_enthalpy(temp, &props);
                 Cell {

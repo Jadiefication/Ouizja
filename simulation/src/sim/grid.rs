@@ -102,13 +102,22 @@ impl Grid {
                         let delta_t_advection  = advection_x + advection_y;
 
                         let total_delta_t = delta_t_conduction + delta_t_advection;
-                        let d_t_cooled = total_delta_t - Cell::newton_cooling(delta_t, (center_val - T_AMBIENT));
 
                         let cp = cell.get_capacity();
-                        let dq = d_t_cooled * cp;
+                        let dq = total_delta_t * cp;
+                        let dq_newton = Cell::newton_cooling(delta_t, total_delta_t);
 
-                        cell.enthalpy = source_row[j].enthalpy + dq  - source_row[j].vacuum_radiation(center_val, delta_t);
+                        cell.enthalpy = source_row[j].enthalpy + dq  - source_row[j].vacuum_radiation(center_val, delta_t) - dq_newton;
                         cell.update_state_from_enthalpy();
+
+                        if let Some(ref mut quantum) = cell.mask.quantum {
+                            let new_gamma = quantum.get_next(center_val, delta_t);
+                            if new_gamma <= 0.0 {
+                                cell.mask.quantum = None;
+                            } else {
+                                quantum.gamma = new_gamma;
+                            }
+                        }
                     }
                 });
 

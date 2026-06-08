@@ -17,6 +17,7 @@ mod tests {
                     source: false,
                     alpha: props.diffusivity,
                     material: Material::Iron,
+                    quantum: None
                 },
                 enthalpy,
             };

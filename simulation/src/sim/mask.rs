@@ -1,3 +1,4 @@
+use crate::sim::cell::quantum::Quantum;
 use crate::sim::material::Material;
 
 #[derive(Clone, Copy, Debug)]
@@ -5,7 +6,8 @@ pub struct Mask {
     pub status: Status,
     pub source: bool,
     pub alpha: f64,
-    pub material: Material
+    pub material: Material,
+    pub quantum: Option<Quantum>
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
