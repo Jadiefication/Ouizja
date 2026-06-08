@@ -10,6 +10,7 @@ class Simulation {
     internal var materialMask = mutableListOf<Material>()
     internal var temps = mutableListOf<Double>()
     internal var sourceMask = mutableListOf<Boolean>()
+    internal var quantum = mutableListOf<Double>()
     internal val winds = mutableListOf<Double>()
 
     fun grid(length: Int, height: Int) {
@@ -110,6 +111,15 @@ class Simulation {
         winds.addAll(listOf(force.first, force.second, temp))
     }
 
+    fun superposition(
+        x: Int,
+        y: Int,
+        kappa: Double,
+        index: Int
+    ) {
+        quantum.addAll(listOf(x.toDouble(), y.toDouble(), kappa, index.toDouble()))
+    }
+
     fun size(): Int {
         return length * height
     }
@@ -120,6 +130,7 @@ data class BuiltSim(
     val length: Int,
     val sourceMask: BooleanArray,
     val materialMask: IntArray,
+    val quantum: DoubleArray,
     val winds: DoubleArray,
     val temps: DoubleArray,
 ) {
@@ -128,6 +139,7 @@ data class BuiltSim(
             temps,
             sourceMask,
             materialMask,
+            quantum,
             winds,
             length,
             height,
@@ -148,6 +160,7 @@ data class BuiltSim(
         if (length != other.length) return false
         if (!sourceMask.contentEquals(other.sourceMask)) return false
         if (!materialMask.contentEquals(other.materialMask)) return false
+        if (!quantum.contentEquals(other.quantum)) return false
         if (!winds.contentEquals(other.winds)) return false
         if (!temps.contentEquals(other.temps)) return false
 
@@ -159,6 +172,7 @@ data class BuiltSim(
         result = 31 * result + length
         result = 31 * result + sourceMask.contentHashCode()
         result = 31 * result + materialMask.contentHashCode()
+        result = 31 * result + quantum.contentHashCode()
         result = 31 * result + winds.contentHashCode()
         result = 31 * result + temps.contentHashCode()
         return result
@@ -204,6 +218,7 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
         simulation.length,
         simulation.sourceMask.toBooleanArray(),
         simulation.materialMask.map { it.id }.toIntArray(),
+        simulation.quantum.toDoubleArray(),
         simulation.winds.toDoubleArray(),
         simulation.temps.toDoubleArray()
     )
@@ -233,6 +248,7 @@ fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
         oldState.length,
         oldState.sourceMask,
         oldState.materialMask,
+        oldState.quantum,
         oldState.winds,
         newField,
     )

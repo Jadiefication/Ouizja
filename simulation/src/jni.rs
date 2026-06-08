@@ -19,7 +19,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     temps: JDoubleArray,
     sourceMask: JBooleanArray,
     materialMask: JIntArray,
-    quantumMask: JDoubleArray,
+    quantum: JDoubleArray,
     winds: JDoubleArray,
     length: jint,
     height: jint,
@@ -40,7 +40,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         sourceMask.get_region(env, 0, &mut source_mask)?;
         winds.get_region(env, 0, &mut partial_winds)?;
         materialMask.get_region(env, 0, &mut material_mask)?;
-        quantumMask.get_region(env, 0, &mut quantum_mask)?;
+        quantum.get_region(env, 0, &mut quantum_mask)?;
 
         let (w_chunks, w_remainder) = partial_winds.as_chunks::<3>();
         if !w_remainder.is_empty() {
@@ -51,35 +51,25 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
             temp: it[2]
         }).collect();
 
-        let (q_chunks, q_remainder) = quantum_mask.as_chunks::<3>();
+        let (q_chunks, q_remainder) = quantum_mask.as_chunks::<4>();
         if !q_remainder.is_empty() {
-            panic!("Remainder of quantum isn't 3^N")
+            panic!("Remainder of quantum isn't 4^N")
         }
 
-        let cells = temperatures
+        let mut cells = temperatures
             .into_iter()
             .zip(source_mask)
             .zip(material_mask)
-            .zip(q_chunks)
-            .map(|(((temp, source), id), quantum)| {
+            .map(|((temp, source), id)| {
                 let material = Material::find_by_id(id as u8);
                 let status = if material == Air { Gas } else if material == Water { Liquid } else { Solid };
                 let props = material.thermal_properties();
-                let quantum = if quantum[0] == 1.0 {
-                    Some(Quantum {
-                        gamma: 1.0,
-                        kappa: quantum[1],
-                        index: quantum[2] as i32,
-                    })
-                } else {
-                    None
-                };
                 let mask = Mask {
                     status,
                     source,
                     alpha: props.diffusivity,
                     material,
-                    quantum,
+                    quantum: None,
                 };
                 let enthalpy = Cell::calculate_forward_enthalpy(temp, &props);
                 Cell {
@@ -88,6 +78,15 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 }
             })
             .collect::<Vec<Cell>>();
+
+        q_chunks.iter().for_each(|it| {
+            let i = (((it[0] as i32) * height) + (it[1] as i32)) as usize;
+            cells[i].mask.quantum = Some(Quantum {
+                gamma: 1.0,
+                kappa: it[2],
+                index: it[3] as i32,
+            })
+        });
 
         let grid = Grid::new(cells, length as usize, height as usize, actual_winds);
         let g_box = Box::new(grid);

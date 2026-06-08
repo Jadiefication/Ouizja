@@ -57,6 +57,7 @@ class OuizjaLoader {
             temps: DoubleArray,
             sourceMask: BooleanArray,
             materialMask: IntArray,
+            quantum: DoubleArray,
             winds: DoubleArray,
             length: Int,
             height: Int,
