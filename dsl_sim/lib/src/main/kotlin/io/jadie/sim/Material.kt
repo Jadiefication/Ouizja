@@ -40,4 +40,17 @@ enum class Material {
 
     abstract val type: Type
     abstract val id: Int
+
+    val diffusivity: Double
+        get() = when(this) {
+            COPPER -> 165.0
+            WATER -> 0.14
+            WOOD -> 0.08
+            ALUMINUM -> 97.0
+            IRON -> 23.0
+            GLASS -> 0.34
+            STONE -> 0.5
+            AIR -> 19.0
+            BARRIER -> 0.0
+        }
 }

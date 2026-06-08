@@ -2,8 +2,7 @@ use haje::vec::vec2::Vec2;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
-use crate::sim::cell::Cell;
-use crate::sim::mask::Mask;
+use crate::sim::cell::cell::Cell;
 use crate::sim::mask::Status::Solid;
 use crate::sim::wind::Wind;
 

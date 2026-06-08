@@ -7,7 +7,7 @@ class Simulation {
 
     internal var length = 256
     internal var height = 256
-    internal var alphaMask = mutableListOf<Material>()
+    internal var materialMask = mutableListOf<Material>()
     internal var temps = mutableListOf<Double>()
     internal var sourceMask = mutableListOf<Boolean>()
     internal val winds = mutableListOf<Double>()
@@ -18,7 +18,7 @@ class Simulation {
     }
 
     fun globalMaterial(material: Material) {
-        alphaMask = MutableList(length * height) { material }
+        materialMask = MutableList(length * height) { material }
     }
 
     fun material(
@@ -28,8 +28,8 @@ class Simulation {
         fromY: Int,
         toY: Int
     ) {
-        if (alphaMask.size != length * height) {
-            alphaMask = MutableList(length * height) { index ->
+        if (materialMask.size != length * height) {
+            materialMask = MutableList(length * height) { index ->
                 val x = index / height
                 val y = index % height
                 if (x in fromX..toX && y in fromY..toY) {
@@ -39,11 +39,11 @@ class Simulation {
                 }
             }
         } else {
-            for (index in alphaMask.indices) {
+            for (index in materialMask.indices) {
                 val x = index / height
                 val y = index % height
                 if (x in fromX..toX && y in fromY..toY) {
-                    alphaMask[index] = material
+                    materialMask[index] = material
                 }
             }
         }
@@ -179,9 +179,9 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
             }
         }
     }
-    if (simulation.alphaMask.size != targetSize) {
-        val oldMask = simulation.alphaMask
-        simulation.alphaMask = MutableList(targetSize) { index ->
+    if (simulation.materialMask.size != targetSize) {
+        val oldMask = simulation.materialMask
+        simulation.materialMask = MutableList(targetSize) { index ->
             if (index < oldMask.size) {
                 oldMask[index]
             } else {
@@ -203,11 +203,21 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
         simulation.height,
         simulation.length,
         simulation.sourceMask.toBooleanArray(),
-        simulation.alphaMask.map { it.id }.toIntArray(),
+        simulation.materialMask.map { it.id }.toIntArray(),
         simulation.winds.toDoubleArray(),
         simulation.temps.toDoubleArray()
     )
     return built
+}
+
+val BuiltSim.nonSolidMask: BooleanArray
+    get() = materialMask.map { id ->
+        val material = Material.entries.find { it.id == id } ?: Material.BARRIER
+        material.type != Type.SOLID
+    }.toBooleanArray()
+
+fun BuiltSim.toMaterialArray(): Array<Material> {
+    return materialMask.map { id -> Material.entries.find { it.id == id } ?: Material.BARRIER }.toTypedArray()
 }
 
 fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {

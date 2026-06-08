@@ -2,3 +2,4 @@
 simulation/Cargo.lock
 simulation/target
 dsl_sim/.gradle
+/dsl_sim/lib/.jqwik-database

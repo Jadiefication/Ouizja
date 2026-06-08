@@ -1,4 +1,4 @@
-use crate::sim::cell::ThermalProperties;
+use crate::sim::cell::therms::ThermalProperties;
 use crate::sim::material::Material::{Air, Aluminum, Barrier, Copper, Glass, Iron, Stone, Water, Wood};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

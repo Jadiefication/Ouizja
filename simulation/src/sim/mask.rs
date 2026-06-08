@@ -1,6 +1,6 @@
 use crate::sim::material::Material;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Mask {
     pub status: Status,
     pub source: bool,
@@ -8,7 +8,7 @@ pub struct Mask {
     pub material: Material
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Status {
     Solid,
     Liquid,

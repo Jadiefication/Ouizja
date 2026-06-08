@@ -8,6 +8,9 @@ haje = "0.3.0"
 jni = "0.22.4"
 rayon = "1.12.0"
 
+[dev-dependencies]
+proptest = "1.6.0"
+
 [lib]
 name = "Ouizja"
 crate-type = ["cdylib"]

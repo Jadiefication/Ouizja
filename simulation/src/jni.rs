@@ -4,7 +4,7 @@ use jni::errors::{Error, ThrowRuntimeExAndDefault};
 use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObjectArray};
 use jni::sys::{jint, jlong};
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
-use crate::sim::cell::Cell;
+use crate::sim::cell::cell::Cell;
 use crate::sim::mask::Mask;
 use crate::sim::mask::Status::{Gas, Liquid, Solid};
 use crate::sim::material::Material;
