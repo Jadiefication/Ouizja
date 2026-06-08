@@ -7,7 +7,8 @@ pub struct ThermalProperties {
     pub latent_vaporization: Option<f64>,
     pub melting_point: Option<f64>,
     pub boiling_point: Option<f64>,
-    pub diffusivity: f64
+    pub diffusivity: f64,
+    pub emissivity: f64
 }
 
 #[derive(Clone, Copy)]

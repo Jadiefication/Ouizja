@@ -6,6 +6,8 @@ use crate::sim::cell::cell::Cell;
 use crate::sim::mask::Status::Solid;
 use crate::sim::wind::Wind;
 
+pub const T_AMBIENT: f64 = 293.15;
+
 pub struct Grid {
     length: usize,
     height: usize,
@@ -100,11 +102,12 @@ impl Grid {
                         let delta_t_advection  = advection_x + advection_y;
 
                         let total_delta_t = delta_t_conduction + delta_t_advection;
+                        let d_t_cooled = total_delta_t - Cell::newton_cooling(delta_t, (center_val - T_AMBIENT));
 
                         let cp = cell.get_capacity();
-                        let dq = total_delta_t * cp;
+                        let dq = d_t_cooled * cp;
 
-                        cell.enthalpy = source_row[j].enthalpy + dq;
+                        cell.enthalpy = source_row[j].enthalpy + dq  - source_row[j].vacuum_radiation(center_val, delta_t);
                         cell.update_state_from_enthalpy();
                     }
                 });

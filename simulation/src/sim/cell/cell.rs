@@ -3,6 +3,9 @@ use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::mask::Mask;
 use crate::sim::material::Material::{Air, Water};
 
+pub const HEAT_TRANSFER_C: f64 = 5.0;
+pub const STEFANS_C: f64 = 5.670e-8;
+
 #[derive(Clone, Copy)]
 pub struct Cell {
     pub mask: Mask,
@@ -70,10 +73,10 @@ impl Cell {
             let total_sublimation_latent = props.latent_fusion.unwrap_or(0.0) + props.latent_vaporization.unwrap_or(0.0);
             let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
 
-            if self.enthalpy < props.melting_point.unwrap_or(0.0) {
+            if self.enthalpy < milestones.h_melting {
                 return self.enthalpy / props.specific_heat_solid
             }
-            if props.melting_point.unwrap_or(0.0) < self.enthalpy && self.enthalpy < h_sublimation_end {
+            if milestones.h_melting <= self.enthalpy && self.enthalpy < h_sublimation_end {
                 return props.melting_point.unwrap_or(0.0)
             }
             if self.enthalpy >= h_sublimation_end {
@@ -84,9 +87,15 @@ impl Cell {
         match self.mask.status {
             Solid => self.enthalpy / props.specific_heat_solid,
             Fusing { .. } => props.melting_point.unwrap_or(0.0),
-            Liquid => props.melting_point.unwrap_or(0.0) + ((self.enthalpy - props.latent_fusion.unwrap_or(0.0)) / props.specific_heat_liquid.unwrap_or(0.0)),
+            Liquid => {
+                let c_liquid = props.specific_heat_liquid.unwrap_or(0.0);
+                props.melting_point.unwrap_or(0.0) + ((self.enthalpy - milestones.h_fused) / c_liquid)
+            },
             Vaporizing { .. } => props.boiling_point.unwrap_or(0.0),
-            Gas => props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - props.latent_vaporization.unwrap_or(0.0)) / props.specific_heat_gas.unwrap_or(0.0))
+            Gas => {
+                let c_gas = props.specific_heat_gas.unwrap_or(0.0);
+                props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - milestones.h_vaporized) / c_gas)
+            }
         }
     }
 
@@ -102,7 +111,7 @@ impl Cell {
         }
     }
 
-    pub(crate) fn calculate_forward_enthalpy(t: f64, props: &ThermalProperties) -> f64 {
+    pub fn calculate_forward_enthalpy(t: f64, props: &ThermalProperties) -> f64 {
         let t_melt = props.melting_point.unwrap_or(f64::MAX);
         let t_boil = props.boiling_point.unwrap_or(f64::MAX);
 
@@ -125,5 +134,13 @@ impl Cell {
 
         let c_gas = props.specific_heat_gas.unwrap_or(props.specific_heat_solid);
         h_vaporized + (c_gas * (t - t_boil))
+    }
+
+    pub fn newton_cooling(d_t: f64, d_temp: f64) -> f64 {
+        HEAT_TRANSFER_C * d_t * d_temp
+    }
+
+    pub fn vacuum_radiation(&self, temp: f64, d_t: f64) -> f64 {
+        self.mask.material.thermal_properties().emissivity * STEFANS_C * temp.powi(4) * d_t
     }
 }
