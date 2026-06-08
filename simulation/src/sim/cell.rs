@@ -11,6 +11,7 @@ pub struct ThermalProperties {
     pub latent_vaporization: Option<f64>,
     pub melting_point: Option<f64>,
     pub boiling_point: Option<f64>,
+    pub diffusivity: f64
 }
 
 #[derive(Clone, Copy)]
@@ -99,7 +100,7 @@ impl Cell {
         props.boiling_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_gas.unwrap_or(1.0))
     }
 
-    pub fn get_temperature(&self) -> Option<f64> {
+    pub fn get_temperature(&self) -> f64 {
         let props = self.mask.material.thermal_properties();
         let milestones = EnthalpyMilestones::from_properties(&props);
         let is_sublimating_material = self.mask.material == Air || self.mask.material == Water;
@@ -109,23 +110,23 @@ impl Cell {
             let total_sublimation_latent = props.latent_fusion.unwrap_or(0.0) + props.latent_vaporization.unwrap_or(0.0);
             let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
 
-            if self.enthalpy < props.melting_point? {
-                return Some(self.enthalpy / props.specific_heat_solid)
+            if self.enthalpy < props.melting_point.unwrap_or(0.0) {
+                return self.enthalpy / props.specific_heat_solid
             }
-            if props.melting_point? < self.enthalpy && self.enthalpy < h_sublimation_end {
-                return Some(props.melting_point?)
+            if props.melting_point.unwrap_or(0.0) < self.enthalpy && self.enthalpy < h_sublimation_end {
+                return props.melting_point.unwrap_or(0.0)
             }
             if self.enthalpy >= h_sublimation_end {
-                return Some(props.boiling_point? + ((self.enthalpy - h_sublimation_end) / props.specific_heat_gas?))
+                return props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - h_sublimation_end) / props.specific_heat_gas.unwrap_or(0.0))
             }
         }
 
         match self.mask.status {
-            Solid => Some(self.enthalpy / props.specific_heat_solid),
-            Fusing { .. } => Some(props.melting_point?),
-            Liquid => Some(props.melting_point? + ((self.enthalpy - props.latent_fusion?) / props.specific_heat_liquid?)),
-            Vaporizing { .. } => Some(props.boiling_point?),
-            Gas => Some(props.boiling_point? + ((self.enthalpy - props.latent_vaporization?) / props.specific_heat_gas?))
+            Solid => self.enthalpy / props.specific_heat_solid,
+            Fusing { .. } => props.melting_point.unwrap_or(0.0),
+            Liquid => props.melting_point.unwrap_or(0.0) + ((self.enthalpy - props.latent_fusion.unwrap_or(0.0)) / props.specific_heat_liquid.unwrap_or(0.0)),
+            Vaporizing { .. } => props.boiling_point.unwrap_or(0.0),
+            Gas => props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - props.latent_vaporization.unwrap_or(0.0)) / props.specific_heat_gas.unwrap_or(0.0))
         }
     }
 
@@ -139,5 +140,30 @@ impl Cell {
             Fusing { .. } => props.specific_heat_solid,
             Vaporizing { .. } => props.specific_heat_liquid.unwrap_or(props.specific_heat_solid),
         }
+    }
+
+    pub(crate) fn calculate_forward_enthalpy(t: f64, props: &ThermalProperties) -> f64 {
+        let t_melt = props.melting_point.unwrap_or(f64::MAX);
+        let t_boil = props.boiling_point.unwrap_or(f64::MAX);
+
+        if t < t_melt {
+            return props.specific_heat_solid * t;
+        }
+
+        let h_at_melting = props.specific_heat_solid * t_melt;
+        let h_fused = h_at_melting + props.latent_fusion.unwrap_or(0.0);
+
+        if t < t_boil {
+            let c_liquid = props.specific_heat_liquid.unwrap_or(props.specific_heat_solid);
+            return h_fused + (c_liquid * (t - t_melt));
+        }
+
+        let delta_t_liquid = (t_boil - t_melt).max(0.0);
+        let c_liquid = props.specific_heat_liquid.unwrap_or(props.specific_heat_solid);
+        let h_at_boiling = h_fused + (c_liquid * delta_t_liquid);
+        let h_vaporized = h_at_boiling + props.latent_vaporization.unwrap_or(0.0);
+
+        let c_gas = props.specific_heat_gas.unwrap_or(props.specific_heat_solid);
+        h_vaporized + (c_gas * (t - t_boil))
     }
 }

@@ -55,17 +55,17 @@ impl Grid {
                             continue;
                         }
                         let alpha = source_row[j].mask.alpha;
-                        let center_val = source_row[j].get_temperature().unwrap_or(0.0);
+                        let center_val = source_row[j].get_temperature();
 
                         let left_i  = if i == 0 { 0 } else { i - 1 };
                         let right_i = if i + 1 >= self.length { i } else { i + 1 };
                         let down_j  = if j == 0 { 0 } else { j - 1 };
                         let up_j    = if j + 1 >= self.height { j } else { j + 1 };
 
-                        let left_val  = self.cells[left_i * self.height + j].get_temperature().unwrap_or(0.0);
-                        let right_val = self.cells[right_i * self.height + j].get_temperature().unwrap_or(0.0);
-                        let down_val  = source_row[down_j].get_temperature().unwrap_or(0.0);
-                        let up_val    = source_row[up_j].get_temperature().unwrap_or(0.0);
+                        let left_val  = self.cells[left_i * self.height + j].get_temperature();
+                        let right_val = self.cells[right_i * self.height + j].get_temperature();
+                        let down_val  = source_row[down_j].get_temperature();
+                        let up_val    = source_row[up_j].get_temperature();
 
                         let laplacian = left_val + right_val + up_val + down_val - (center_val * 4.0);
 

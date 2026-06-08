@@ -118,9 +118,8 @@ class Simulation {
 data class BuiltSim(
     val height: Int,
     val length: Int,
-    val alphaMask: DoubleArray,
     val sourceMask: BooleanArray,
-    val nonSolidMask: BooleanArray,
+    val materialMask: IntArray,
     val winds: DoubleArray,
     val temps: DoubleArray,
 ) {
@@ -128,8 +127,7 @@ data class BuiltSim(
         val sim = OuizjaLoader.createSim(
             temps,
             sourceMask,
-            alphaMask,
-            nonSolidMask,
+            materialMask,
             winds,
             length,
             height,
@@ -148,9 +146,9 @@ data class BuiltSim(
 
         if (height != other.height) return false
         if (length != other.length) return false
-        if (!alphaMask.contentEquals(other.alphaMask)) return false
         if (!sourceMask.contentEquals(other.sourceMask)) return false
-        if (!nonSolidMask.contentEquals(other.nonSolidMask)) return false
+        if (!materialMask.contentEquals(other.materialMask)) return false
+        if (!winds.contentEquals(other.winds)) return false
         if (!temps.contentEquals(other.temps)) return false
 
         return true
@@ -159,9 +157,9 @@ data class BuiltSim(
     override fun hashCode(): Int {
         var result = height
         result = 31 * result + length
-        result = 31 * result + alphaMask.contentHashCode()
         result = 31 * result + sourceMask.contentHashCode()
-        result = 31 * result + nonSolidMask.contentHashCode()
+        result = 31 * result + materialMask.contentHashCode()
+        result = 31 * result + winds.contentHashCode()
         result = 31 * result + temps.contentHashCode()
         return result
     }
@@ -204,9 +202,8 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
     val built = BuiltSim(
         simulation.height,
         simulation.length,
-        simulation.alphaMask.map { it.diffusivity }.toDoubleArray(),
         simulation.sourceMask.toBooleanArray(),
-        simulation.alphaMask.map { it.type != Type.SOLID }.toBooleanArray(),
+        simulation.alphaMask.map { it.id }.toIntArray(),
         simulation.winds.toDoubleArray(),
         simulation.temps.toDoubleArray()
     )
@@ -224,9 +221,8 @@ fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
     val newSim = BuiltSim(
         oldState.height,
         oldState.length,
-        oldState.alphaMask,
         oldState.sourceMask,
-        oldState.nonSolidMask,
+        oldState.materialMask,
         oldState.winds,
         newField,
     )

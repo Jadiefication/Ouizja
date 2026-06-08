@@ -1,11 +1,15 @@
 use haje::vec::vec2::Vec2;
-use crate::grid::Grid;
+use crate::sim::grid::Grid;
 use jni::errors::{Error, ThrowRuntimeExAndDefault};
-use jni::objects::{JBooleanArray, JClass, JDoubleArray, JObject, JObjectArray};
+use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObjectArray};
 use jni::sys::{jint, jlong};
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
-use crate::mask::Mask;
-use crate::wind::Wind;
+use crate::sim::cell::Cell;
+use crate::sim::mask::Mask;
+use crate::sim::mask::Status::{Gas, Liquid, Solid};
+use crate::sim::material::Material;
+use crate::sim::material::Material::{Air, Water};
+use crate::sim::wind::Wind;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
@@ -13,8 +17,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     _class: JClass,
     temps: JDoubleArray,
     sourceMask: JBooleanArray,
-    alphaMask: JDoubleArray,
-    nonSolidMask: JBooleanArray,
+    materialMask: JIntArray,
     winds: JDoubleArray,
     length: jint,
     height: jint,
@@ -25,17 +28,15 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         }
         let size = (length * height) as usize;
 
-        let mut alpha_mask = vec![0.0f64; size];
         let mut temperatures = vec![0.0f64; size];
         let mut source_mask = vec![false; size];
-        let mut non_solid_mask = vec![false; size];
         let mut partial_winds = vec![0.0f64; winds.len(env)?];
+        let mut material_mask = vec![0; size];
 
-        alphaMask.get_region(env, 0, &mut alpha_mask)?;
         temps.get_region(env, 0, &mut temperatures)?;
         sourceMask.get_region(env, 0, &mut source_mask)?;
-        nonSolidMask.get_region(env, 0, &mut non_solid_mask)?;
         winds.get_region(env, 0, &mut partial_winds)?;
+        materialMask.get_region(env, 0, &mut  material_mask)?;
 
         let (w_chunks, w_remainder) = partial_winds.as_chunks::<3>();
         if !w_remainder.is_empty() {
@@ -46,18 +47,29 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
             temp: it[2]
         }).collect();
 
-        let masks = alpha_mask
+        let cells = temperatures
             .into_iter()
             .zip(source_mask)
-            .zip(non_solid_mask)
-            .map(|((alpha, source), not_solid)| Mask {
-                alpha,
-                source,
-                not_solid,
+            .zip(material_mask)
+            .map(|((temp, source), id)| {
+                let material = Material::find_by_id(id as u8);
+                let status = if material == Air { Gas } else if material == Water { Liquid } else { Solid };
+                let props = material.thermal_properties();
+                let mask = Mask {
+                    status,
+                    source,
+                    alpha: props.diffusivity,
+                    material,
+                };
+                let enthalpy = Cell::calculate_forward_enthalpy(temp, &props);
+                Cell {
+                    mask,
+                    enthalpy,
+                }
             })
-            .collect::<Vec<Mask>>();
+            .collect::<Vec<Cell>>();
 
-        let grid = Grid::new(temperatures, masks, length as usize, height as usize, actual_winds);
+        let grid = Grid::new(cells, length as usize, height as usize, actual_winds);
         let g_box = Box::new(grid);
 
         return Ok::<i64, Error>(Box::into_raw(g_box) as i64);
@@ -91,9 +103,13 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
 
         let jni_arr = JObjectArray::<JDoubleArray>::new(env, length as usize, JDoubleArray::null())?;
 
-        for (i, row_slice) in grid.temperature.chunks_exact(height as usize).enumerate() {
+        for (i, row_slice) in grid.cells.chunks_exact(height as usize).enumerate() {
+            let temp_slice: Vec<f64> = row_slice
+                .into_iter()
+                .map(|cell| cell.get_temperature())
+                .collect();
             let temp_arr = JDoubleArray::new(env, height as usize)?;
-            temp_arr.set_region(env, 0, row_slice)?;
+            temp_arr.set_region(env, 0, &temp_slice)?;
             jni_arr.set_element(env, i, temp_arr)?;
         }
 

@@ -2,42 +2,42 @@ package io.jadie.sim
 
 enum class Material {
     COPPER {
-        override val diffusivity: Double = 165.0
         override val type: Type = Type.SOLID
+        override val id: Int = 0
     },
     WATER {
-        override val diffusivity: Double = 0.14
         override val type: Type = Type.FLUID
+        override val id: Int = 1
     },
     WOOD {
-        override val diffusivity: Double = 0.08
         override val type: Type = Type.SOLID
+        override val id: Int = 2
     },
     ALUMINUM {
-        override val diffusivity: Double = 97.0
         override val type: Type = Type.SOLID
+        override val id: Int = 3
     },
     IRON {
-        override val diffusivity: Double = 23.0
         override val type: Type = Type.SOLID
+        override val id: Int = 4
     },
     GLASS {
-        override val diffusivity: Double = 0.34
         override val type: Type = Type.SOLID
+        override val id: Int = 5
     },
     STONE {
-        override val diffusivity: Double = 0.5
         override val type: Type = Type.SOLID
+        override val id: Int = 6
     },
     AIR {
-        override val diffusivity: Double = 19.0
         override val type: Type = Type.GAS
+        override val id: Int = 7
     },
     BARRIER {
-        override val diffusivity: Double = 0.0
         override val type: Type = Type.SOLID
+        override val id: Int = 8
     };
 
-    abstract val diffusivity: Double
     abstract val type: Type
+    abstract val id: Int
 }

@@ -56,8 +56,7 @@ class OuizjaLoader {
         external fun createSim(
             temps: DoubleArray,
             sourceMask: BooleanArray,
-            alphaMask: DoubleArray,
-            nonSolidMask: BooleanArray,
+            materialMask: IntArray,
             winds: DoubleArray,
             length: Int,
             height: Int,
