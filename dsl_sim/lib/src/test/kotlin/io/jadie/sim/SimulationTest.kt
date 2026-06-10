@@ -102,7 +102,9 @@ class SimulationTest {
             arrayOf(
                 doubleArrayOf(1.0, 2.0),
                 doubleArrayOf(3.0, 4.0)
-            )
+            ),
+            emptyArray(),
+            arrayOf(arrayOf(Type.SOLID, Type.SOLID), arrayOf(Type.SOLID, Type.SOLID))
         )
         val newSim = transform(oldSim, newState)
 
@@ -251,7 +253,9 @@ class SimulationTest {
             arrayOf(
                 doubleArrayOf(100.0, 100.0),
                 doubleArrayOf(100.0, 100.0)
-            )
+            ),
+            emptyArray(),
+            arrayOf(arrayOf(Type.SOLID, Type.SOLID), arrayOf(Type.SOLID, Type.SOLID))
         )
 
         val sim2 = transform(sim1, state)
@@ -409,5 +413,76 @@ class SimulationTest {
                 assertEquals(t1, t3, 0.1, "Symmetry failed (y) at size $size, pos $i, $j")
             }
         }
+    }
+    @Test
+    fun testSimStateStructure() {
+        val sim = simulate {
+            grid(3, 2)
+            globalMaterial(Material.WATER) // Water is Liquid
+            material(Material.IRON, 0, 0, 0, 1) // (0,0) and (0,1) are Iron (Solid)
+            temp(100.0, 1, 1)
+            source(1, 1)
+            superposition(2, 0, 0.001, 2) // Quantum state at (2,0)
+        }
+
+        val result = sim.run(0)
+
+        // Verify field dimensions [length][height] -> [3][2]
+        assertEquals(3, result.field.size)
+        assertEquals(2, result.field[0].size)
+
+        // Verify states dimensions [length][height] -> [3][2]
+        assertEquals(3, result.states.size)
+        assertEquals(2, result.states[0].size)
+
+        // Verify states values
+        // (0,0) and (0,1) should be SOLID (Iron)
+        assertEquals(Type.SOLID, result.states[0][0])
+        assertEquals(Type.SOLID, result.states[0][1])
+        // (1,0), (1,1), (2,0), (2,1) should be FLUID (Water)
+        assertEquals(Type.FLUID, result.states[1][0])
+        assertEquals(Type.FLUID, result.states[1][1])
+        assertEquals(Type.FLUID, result.states[2][0])
+        assertEquals(Type.FLUID, result.states[2][1])
+
+        // Verify quantum states
+        // We added one at (2,0)
+        assertEquals(1, result.quantum.size)
+        val q = result.quantum[0]
+        assertEquals(2, q.first)
+        assertEquals(0, q.second)
+        assertEquals(1.0, q.third) // gamma is hardcoded to 1.0 in jni.rs:85 for now
+    }
+
+    @Property
+    fun testSimStateConsistency(@ForAll @IntRange(min = 1, max = 10) length: Int,
+                                @ForAll @IntRange(min = 1, max = 10) height: Int) {
+        val sim = simulate {
+            grid(length, height)
+            globalMaterial(Material.COPPER)
+        }
+        val result = sim.run(0)
+
+        assertEquals(length, result.field.size)
+        assertEquals(height, result.field[0].size)
+        assertEquals(length, result.states.size)
+        assertEquals(height, result.states[0].size)
+    }
+
+    @Test
+    fun testQuantumStatePersistence() {
+        val sim = simulate {
+            grid(2, 2)
+            globalMaterial(Material.IRON)
+            superposition(0, 0, 0.001, 2) // index must be small integer
+            superposition(1, 1, 0.001, 2)
+        }
+        
+        val result = sim.run(1)
+        
+        assertEquals(2, result.quantum.size)
+        val coords = result.quantum.map { it.first to it.second }.toSet()
+        assertTrue(coords.contains(0 to 0))
+        assertTrue(coords.contains(1 to 1))
     }
 }

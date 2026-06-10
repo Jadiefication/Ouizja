@@ -34,7 +34,8 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         let mut source_mask = vec![false; size];
         let mut partial_winds = vec![0.0f64; winds.len(env)?];
         let mut material_mask = vec![0; size];
-        let mut quantum_mask = vec![0.0; size];
+        let q_len = quantum.len(env)?;
+        let mut quantum_mask = vec![0.0; q_len];
 
         temps.get_region(env, 0, &mut temperatures)?;
         sourceMask.get_region(env, 0, &mut source_mask)?;
@@ -42,19 +43,26 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         materialMask.get_region(env, 0, &mut material_mask)?;
         quantum.get_region(env, 0, &mut quantum_mask)?;
 
-        let (w_chunks, w_remainder) = partial_winds.as_chunks::<3>();
-        if !w_remainder.is_empty() {
-            panic!("Remainder of winds isn't 3^N")
-        }
+        let (w_chunks, _w_remainder) = if partial_winds.len() >= 3 {
+             let (chunks, remainder) = partial_winds.as_chunks::<3>();
+             (chunks, remainder)
+        } else {
+             (&[][..], &[][..])
+        };
         let actual_winds: Vec<Wind> = w_chunks.into_iter().map(|it| Wind {
             force: Vec2 { x: it[0], y: it[1] },
             temp: it[2]
         }).collect();
 
-        let (q_chunks, q_remainder) = quantum_mask.as_chunks::<4>();
-        if !q_remainder.is_empty() {
-            panic!("Remainder of quantum isn't 4^N")
-        }
+        let (q_chunks, q_remainder) = if q_len > 0 {
+            let (chunks, remainder) = quantum_mask.as_chunks::<4>();
+            if !remainder.is_empty() {
+                panic!("Remainder of quantum isn't 4^N")
+            }
+            (Some(chunks), remainder)
+        } else {
+            (None, &[][..])
+        };
 
         let mut cells = temperatures
             .into_iter()
@@ -79,14 +87,20 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
             })
             .collect::<Vec<Cell>>();
 
-        q_chunks.iter().for_each(|it| {
-            let i = (((it[0] as i32) * height) + (it[1] as i32)) as usize;
-            cells[i].mask.quantum = Some(Quantum {
-                gamma: 1.0,
-                kappa: it[2],
-                index: it[3] as i32,
-            })
-        });
+        if let Some(chunks) = q_chunks {
+            chunks.iter().for_each(|it| {
+                let x = it[0] as i32;
+                let y = it[1] as i32;
+                if x >= 0 && x < length && y >= 0 && y < height {
+                    let i = (x * height + y) as usize;
+                    cells[i].mask.quantum = Some(Quantum {
+                        gamma: 1.0,
+                        kappa: it[2],
+                        index: it[3] as i32,
+                    })
+                }
+            });
+        }
 
         let grid = Grid::new(cells, length as usize, height as usize, actual_winds);
         let g_box = Box::new(grid);
@@ -179,7 +193,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
 
         for (i, cell) in q_cells.iter().enumerate() {
             if let Some(q_cell) = cell {
-                let t_class = env.find_class(jni_str!("Lkotlin/Triple"))?;
+                let t_class = env.find_class(jni_str!("kotlin/Triple"))?;
                 let i_class = env.find_class(jni_str!("java/lang/Integer"))?;
                 let d_class = env.find_class(jni_str!("java/lang/Double"))?;
 
@@ -191,14 +205,14 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                     ]
                 )?;
                 let y = env.new_object(
-                    i_class,
+                    &i_class,
                     jni_sig!("(I)V"),
                     &[
                         JValue::Int((i as i32) % height)
                     ]
                 )?;
                 let gamma = env.new_object(
-                    d_class,
+                    &d_class,
                     jni_sig!("(D)V"),
                     &[
                         JValue::Double(q_cell.mask.quantum.unwrap().gamma)
@@ -206,7 +220,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                 )?;
 
                 let obj = env.new_object(
-                    t_class,
+                    &t_class,
                     jni_sig!("(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V"),
                     &[
                         JValue::Object(&x),
@@ -222,8 +236,8 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
         let class = env.find_class(jni_str!("io/jadie/SimState"))?;
 
         let object = env.new_object(
-            class,
-            jni_sig!("([[D[Ljava/lang/Object;[Lio/jadie/sim/Type;)V"),
+            &class,
+            jni_sig!("([[D[Lkotlin/Triple;[[Lio/jadie/sim/Type;)V"),
             &[
                 JValue::Object(&temps),
                 JValue::Object(&q_states),
