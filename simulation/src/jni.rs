@@ -6,8 +6,8 @@ use jni::sys::{jint, jlong};
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
 use crate::sim::cell::cell::Cell;
 use crate::sim::cell::quantum::Quantum;
-use crate::sim::mask::Mask;
-use crate::sim::mask::Status::{Gas, Liquid, Solid};
+use crate::sim::mask::{Mask, Status};
+use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::material::Material;
 use crate::sim::material::Material::{Air, Water};
 use crate::sim::wind::Wind;
@@ -120,24 +120,114 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
 
         grid.run(iterations as usize);
 
-        let jni_arr = JObjectArray::<JDoubleArray>::new(env, length as usize, JDoubleArray::null())?;
+        let temps = JObjectArray::<JDoubleArray>::new(env, length as usize, JDoubleArray::null())?;
+        let type_class = env.find_class(jni_str!("io/jadie/sim/Type"))?;
+
+        let types = JObjectArray::<JObjectArray>::new(env, length as usize, JObjectArray::<JObject>::null())?;
 
         for (i, row_slice) in grid.cells.chunks_exact(height as usize).enumerate() {
             let temp_slice: Vec<f64> = row_slice
-                .into_iter()
+                .iter()
                 .map(|cell| cell.get_temperature())
                 .collect();
             let temp_arr = JDoubleArray::new(env, height as usize)?;
             temp_arr.set_region(env, 0, &temp_slice)?;
-            jni_arr.set_element(env, i, temp_arr)?;
+            temps.set_element(env, i, temp_arr)?;
+
+            let temp_arr = JObjectArray::<JObject>::new(env, height as usize, JObject::null())?;
+
+            for (j, it) in row_slice.iter().enumerate() {
+                let status = it.mask.status;
+                let status_u8 = match status {
+                    Solid => 0,
+                    Liquid => 1,
+                    Gas => 2,
+                    Fusing { .. } => 3,
+                    Vaporizing { .. } => 4,
+                };
+
+                let value = env.call_static_method(
+                    &type_class,
+                    jni_str!("fromId"),
+                    jni_sig!("(I)Lio/jadie/sim/Type;"),
+                    &[
+                        JValue::Int(status_u8)
+                    ]
+                ).unwrap();
+
+                let obj = value.into_object().unwrap();
+                temp_arr.set_element(env, j, obj)?;
+            }
+
+            types.set_element(env, i, temp_arr)?;
+        }
+
+        let q_cells: Vec<Option<Cell>> = grid.cells
+            .iter()
+            .map(|&it| {
+                if it.mask.quantum.is_some() {
+                    Some(it)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let q_length = q_cells.iter().filter(|it| it.is_some()).count();
+        let q_states = JObjectArray::<JObject>::new(env, q_length, JObject::null())?;
+        let mut write_idx = 0;
+
+        for (i, cell) in q_cells.iter().enumerate() {
+            if let Some(q_cell) = cell {
+                let t_class = env.find_class(jni_str!("Lkotlin/Triple"))?;
+                let i_class = env.find_class(jni_str!("java/lang/Integer"))?;
+                let d_class = env.find_class(jni_str!("java/lang/Double"))?;
+
+                let x = env.new_object(
+                    &i_class,
+                    jni_sig!("(I)V"),
+                    &[
+                        JValue::Int((i as i32) / height)
+                    ]
+                )?;
+                let y = env.new_object(
+                    i_class,
+                    jni_sig!("(I)V"),
+                    &[
+                        JValue::Int((i as i32) % height)
+                    ]
+                )?;
+                let gamma = env.new_object(
+                    d_class,
+                    jni_sig!("(D)V"),
+                    &[
+                        JValue::Double(q_cell.mask.quantum.unwrap().gamma)
+                    ]
+                )?;
+
+                let obj = env.new_object(
+                    t_class,
+                    jni_sig!("(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V"),
+                    &[
+                        JValue::Object(&x),
+                        JValue::Object(&y),
+                        JValue::Object(&gamma)
+                    ]
+                )?;
+                q_states.set_element(env, write_idx, obj)?;
+                write_idx += 1;
+            }
         }
 
         let class = env.find_class(jni_str!("io/jadie/SimState"))?;
+
         let object = env.new_object(
             class,
-            jni_sig!("([[D)V"),
+            jni_sig!("([[D[Ljava/lang/Object;[Lio/jadie/sim/Type;)V"),
             &[
-                JValue::Object(&jni_arr)
+                JValue::Object(&temps),
+                JValue::Object(&q_states),
+                JValue::Object(&types)
             ],
         )?;
 

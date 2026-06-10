@@ -11,14 +11,15 @@ pub struct Mask {
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
+#[repr(u8)]
 pub enum Status {
-    Solid,
-    Liquid,
-    Gas,
+    Solid = 0,
+    Liquid = 1,
+    Gas = 2,
     Fusing {
         l_energy: f64
-    },
+    } = 3,
     Vaporizing {
         l_energy: f64
-    }
+    } = 4
 }

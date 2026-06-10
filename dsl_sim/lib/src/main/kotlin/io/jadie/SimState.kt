@@ -1,7 +1,12 @@
 package io.jadie
 
+import io.jadie.sim.Type
+
 data class SimState(
-    val field: Array<DoubleArray>
+    val field: Array<DoubleArray>,
+    // [x, y, gamma]
+    val quantum: Array<Triple<Int, Int, Double>>,
+    val states: Array<Array<Type>>
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -9,10 +14,17 @@ data class SimState(
 
         other as SimState
 
-        return field.contentDeepEquals(other.field)
+        if (!field.contentDeepEquals(other.field)) return false
+        if (!quantum.contentEquals(other.quantum)) return false
+        if (!states.contentDeepEquals(other.states)) return false
+
+        return true
     }
 
     override fun hashCode(): Int {
-        return field.contentDeepHashCode()
+        var result = field.contentDeepHashCode()
+        result = 31 * result + quantum.contentHashCode()
+        result = 31 * result + states.contentDeepHashCode()
+        return result
     }
 }
