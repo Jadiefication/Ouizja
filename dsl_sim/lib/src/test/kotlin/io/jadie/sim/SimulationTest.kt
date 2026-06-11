@@ -485,4 +485,129 @@ class SimulationTest {
         assertTrue(coords.contains(0 to 0))
         assertTrue(coords.contains(1 to 1))
     }
+
+    @Test
+    fun testAllMaterials() {
+        Material.entries.filter { it != Material.WOOD && it != Material.GLASS && it != Material.STONE && it != Material.BARRIER }.forEach { material ->
+            val sim = simulate {
+                grid(2, 2)
+                globalMaterial(material)
+                globalTemperature(300.0)
+            }
+            val result = sim.run(1)
+            assertNotNull(result)
+            // At 300K:
+            // COPPER: melt 1358K -> SOLID
+            // WATER: melt 273K, boil 373K -> FLUID (Liquid)
+            // ALUMINUM: melt 933K -> SOLID
+            // IRON: melt 1811K -> SOLID
+            // AIR: melt 194K, boil 194K -> GAS
+            val expectedType = when(material) {
+                Material.WATER -> Type.FLUID
+                Material.AIR -> Type.GAS
+                else -> Type.SOLID
+            }
+            assertEquals(expectedType, result.states[0][0], "Material $material at 300K should be $expectedType")
+        }
+    }
+
+    @Test
+    fun testWaterPhaseTransition() {
+        // Ice at 260K
+        val iceSim = simulate {
+            grid(1, 1)
+            globalMaterial(Material.WATER)
+            globalTemperature(260.0)
+        }
+        // Run 1 iteration to force state update
+        val iceResult = iceSim.run(1)
+        assertEquals(Type.SOLID, iceResult.states[0][0], "Water at 260K should be SOLID")
+
+        // Steam at 500K (higher to ensure it goes past plateau if any)
+        val steamSim = simulate {
+            grid(1, 1)
+            globalMaterial(Material.WATER)
+            globalTemperature(500.0)
+        }
+        val steamResult = steamSim.run(1)
+        assertEquals(Type.GAS, steamResult.states[0][0], "Water at 500K should be GAS")
+    }
+
+    @Test
+    fun testLongRunEquilibrium() {
+        // Without sources, a grid should eventually reach a state where all cells are at ambient temp
+        // though it might take a while depending on diffusivity.
+        // In grid.rs, ambient temp is 293.15, but it's subtracted by radiation and cooling.
+        // Actually, Newton cooling and radiation remove heat.
+        val sim = simulate {
+            grid(3, 3)
+            globalMaterial(Material.IRON)
+            globalTemperature(400.0)
+        }
+        
+        val resultAfter100 = sim.run(100)
+        val avgTemp100 = resultAfter100.field.map { it.average() }.average()
+        
+        val resultAfter200 = sim.run(200)
+        val avgTemp200 = resultAfter200.field.map { it.average() }.average()
+        
+        assertTrue(avgTemp200 < avgTemp100, "Temperature $avgTemp200 should be less than $avgTemp100")
+    }
+
+    @Test
+    fun testComplexGrid() {
+        val sim = simulate {
+            grid(10, 10)
+            globalMaterial(Material.AIR)
+            globalTemperature(293.15)
+            
+            // A copper plate in the middle
+            material(Material.COPPER, 3, 6, 3, 6)
+            
+            // A heat source at the bottom left of the plate
+            temp(500.0, 3, 3)
+            source(3, 3)
+            
+            // Wind from the left
+            wind(5.0 to 0.0, 293.15)
+        }
+        
+        val result = sim.run(50)
+        
+        // Copper should be hotter than air
+        assertTrue(result.field[4][4] > 293.15)
+        // Heat should have moved right due to wind
+        // Note: wind direction in grid.rs might be reversed or have different indexing
+        // If left_val is i-1, and wind is > 0, then cell[i] gets heat from cell[i-1] (left).
+        // So heat moves right. (7,3) is to the right of (3,3).
+        assertTrue(result.field[7][3] != result.field[2][3], "Wind should cause asymmetry")
+    }
+
+    @Property
+    fun testVaryingGridAspectRatios(@ForAll @IntRange(min = 1, max = 20) l: Int,
+                                    @ForAll @IntRange(min = 1, max = 20) h: Int) {
+        val sim = simulate {
+            grid(l, h)
+            globalMaterial(Material.STONE)
+        }
+        val result = sim.run(1)
+        assertEquals(l, result.field.size)
+        assertEquals(h, result.field[0].size)
+    }
+
+    @Test
+    fun testBoundaryConditions() {
+        val sim = simulate {
+            grid(3, 3)
+            globalMaterial(Material.IRON)
+            globalTemperature(300.0)
+            // Sources at corners
+            temp(500.0, 0, 0); source(0, 0)
+            temp(500.0, 2, 2); source(2, 2)
+        }
+        val result = sim.run(10)
+        assertEquals(500.0, result.field[0][0])
+        assertEquals(500.0, result.field[2][2])
+        assertTrue(result.field[1][1] > 300.0)
+    }
 }
