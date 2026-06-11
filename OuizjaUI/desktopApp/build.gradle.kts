@@ -13,6 +13,8 @@ dependencies {
     implementation(libs.kotlinx.coroutinesSwing)
 
     implementation(libs.compose.uiToolingPreview)
+
+    implementation("io.jadie.sim:dsl_sim:1.0-SNAPSHOT")
 }
 
 compose.desktop {

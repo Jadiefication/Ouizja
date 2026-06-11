@@ -11,7 +11,11 @@ plugins {
 
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
+    `maven-publish`
 }
+
+group = "io.jadie.sim"
+version = "1.0-SNAPSHOT"
 
 repositories {
     // Use Maven Central for resolving dependencies.
@@ -41,11 +45,21 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    withJavadocJar()
+    withSourcesJar()
 }
 
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
+}
+
+tasks.named("processResources") {
+    dependsOn(buildNative)
+}
+
+tasks.named("compileKotlin") {
+    dependsOn(buildNative)
 }
 
 val nativeResourceDir = layout.projectDirectory.dir("src/main/resources/native")
@@ -117,6 +131,14 @@ val buildNative by tasks.registering {
             } else {
                 logger.warn("Could not find built library at ${sourceFile.absolutePath}")
             }
+        }
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
         }
     }
 }
