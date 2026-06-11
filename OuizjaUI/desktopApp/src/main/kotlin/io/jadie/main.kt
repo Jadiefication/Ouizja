@@ -9,11 +9,6 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "OuizjaUI",
     ) {
-        Button(
-            onClick = {
-            }
-        ) {
-
-        }
+        App()
     }
 }

@@ -35,3 +35,5 @@ plugins {
 
 include(":desktopApp")
 include(":shared")
+
+includeBuild("../dsl_sim")

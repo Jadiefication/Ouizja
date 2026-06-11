@@ -19,6 +19,9 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
         }
+        jvmMain.dependencies {
+            implementation("io.jadie.sim:lib:1.0-SNAPSHOT")
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

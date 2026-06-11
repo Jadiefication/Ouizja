@@ -14,7 +14,7 @@ dependencies {
 
     implementation(libs.compose.uiToolingPreview)
 
-    implementation("io.jadie.sim:dsl_sim:1.0-SNAPSHOT")
+    implementation("io.jadie.sim:lib:1.0-SNAPSHOT")
 }
 
 compose.desktop {
