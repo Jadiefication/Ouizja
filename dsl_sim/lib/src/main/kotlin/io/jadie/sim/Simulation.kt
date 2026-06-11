@@ -126,13 +126,13 @@ class Simulation {
 }
 
 data class BuiltSim(
-    val height: Int,
-    val length: Int,
-    val sourceMask: BooleanArray,
-    val materialMask: IntArray,
-    val quantum: DoubleArray,
-    val winds: DoubleArray,
-    val temps: DoubleArray,
+    internal val height: Int,
+    internal val length: Int,
+    internal val sourceMask: BooleanArray,
+    internal val materialMask: IntArray,
+    internal var quantum: DoubleArray,
+    internal val winds: DoubleArray,
+    internal var temps: DoubleArray,
 ) {
     fun run(iterations: Long): SimState {
         val sim = OuizjaLoader.createSim(
@@ -148,6 +148,33 @@ data class BuiltSim(
         val state = OuizjaLoader.runSim(iterations, sim, length, height)
         OuizjaLoader.freeSim(sim)
         return state
+    }
+
+    fun run(iterations: Long, predicate: (SimState) -> Boolean) {
+        for (i in 0..iterations) {
+            val state = run(1)
+
+            if (predicate(state)) {
+                break
+            } else {
+                val newField = buildList {
+                    state.field.forEach { arr ->
+                        arr.forEach { value ->
+                            this.add(value)
+                        }
+                    }
+                }.toDoubleArray()
+
+                val newQuantum = buildList {
+                    state.quantum.forEach { value ->
+                        this.addAll(listOf(value.first.toDouble(), value.second.toDouble(), value.third))
+                    }
+                }.toDoubleArray()
+
+                this.temps = newField
+                this.quantum = newQuantum
+            }
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -243,12 +270,19 @@ fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
             }
         }
     }.toDoubleArray()
+
+    val newQuantum = buildList {
+        newState.quantum.forEach { value ->
+            this.addAll(listOf(value.first.toDouble(), value.second.toDouble(), value.third))
+        }
+    }.toDoubleArray()
+
     val newSim = BuiltSim(
         oldState.height,
         oldState.length,
         oldState.sourceMask,
         oldState.materialMask,
-        oldState.quantum,
+        newQuantum,
         oldState.winds,
         newField,
     )
