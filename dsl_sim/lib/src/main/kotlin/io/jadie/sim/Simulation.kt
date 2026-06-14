@@ -77,6 +77,34 @@ class Simulation {
         }
     }
 
+    fun temp(
+        temp: Double,
+        fromX: Int,
+        toX: Int,
+        fromY: Int,
+        toY: Int
+    ) {
+        if (temps.size != length * height) {
+            temps = MutableList(length * height) { index ->
+                val x = index / height
+                val y = index % height
+                if (x in fromX..toX && y in fromY..toY) {
+                    temp
+                } else {
+                    0.0
+                }
+            }
+        } else {
+            for (index in temps.indices) {
+                val x = index / height
+                val y = index % height
+                if (x in fromX..toX && y in fromY..toY) {
+                    temps[index] = temp
+                }
+            }
+        }
+    }
+
     fun barrier(
         fromX: Int,
         toX: Int,
@@ -118,6 +146,99 @@ class Simulation {
         index: Int
     ) {
         quantum.addAll(listOf(x.toDouble(), y.toDouble(), kappa, index.toDouble()))
+    }
+
+    fun circle(centerX: Int, centerY: Int, radius: Int, source: Boolean) {
+        val r_2 = radius * radius
+        if (sourceMask.size != length * height) {
+            sourceMask = MutableList(length * height) { index ->
+                val xIndex = index / height
+                val yIndex = index % height
+
+                val d_x = (xIndex + 0.5) - centerX
+                val d_y = (yIndex + 0.5) - centerY
+
+                if (d_x * d_x + d_y * d_y <= r_2) {
+                    source
+                } else {
+                    !source
+                }
+            }
+        } else {
+            for (index in sourceMask.indices) {
+                val xIndex = index / height
+                val yIndex = index % height
+
+                val d_x = (xIndex + 0.5) - centerX
+                val d_y = (yIndex + 0.5) - centerY
+
+                if (d_x * d_x + d_y * d_y <= r_2) {
+                    sourceMask[index] = source
+                }
+            }
+        }
+
+        fun circle(centerX: Int, centerY: Int, radius: Int, temp: Double) {
+            val r_2 = radius * radius
+            if (temps.size != length * height) {
+                temps = MutableList(length * height) { index ->
+                    val xIndex = index / height
+                    val yIndex = index % height
+
+                    val d_x = (xIndex + 0.5) - centerX
+                    val d_y = (yIndex + 0.5) - centerY
+
+                    if (d_x * d_x + d_y * d_y <= r_2) {
+                        temp
+                    } else {
+                        0.0
+                    }
+                }
+            } else {
+                for (index in temps.indices) {
+                    val xIndex = index / height
+                    val yIndex = index % height
+
+                    val d_x = (xIndex + 0.5) - centerX
+                    val d_y = (yIndex + 0.5) - centerY
+
+                    if (d_x * d_x + d_y * d_y <= r_2) {
+                        temps[index] = temp
+                    }
+                }
+            }
+        }
+    }
+
+    fun circle(centerX: Int, centerY: Int, radius: Int, material: Material) {
+        val r_2 = radius * radius
+        if (materialMask.size != length * height) {
+            materialMask = MutableList(length * height) { index ->
+                val xIndex = index / height
+                val yIndex = index % height
+
+                val d_x = (xIndex + 0.5) - centerX
+                val d_y = (yIndex + 0.5) - centerY
+
+                if (d_x * d_x + d_y * d_y <= r_2) {
+                    material
+                } else {
+                    Material.BARRIER
+                }
+            }
+        } else {
+            for (index in materialMask.indices) {
+                val xIndex = index / height
+                val yIndex = index % height
+
+                val d_x = (xIndex + 0.5) - centerX
+                val d_y = (yIndex + 0.5) - centerY
+
+                if (d_x * d_x + d_y * d_y <= r_2) {
+                    materialMask[index] = material
+                }
+            }
+        }
     }
 
     fun size(): Int {
