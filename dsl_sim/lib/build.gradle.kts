@@ -20,6 +20,7 @@ version = "1.0-SNAPSHOT"
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
+    maven("https://repo.spongepowered.org/repository/maven-public/")
 }
 
 dependencies {
@@ -38,6 +39,7 @@ dependencies {
 
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation(libs.guava)
+    implementation("org.spongepowered:noise:2.0.0-SNAPSHOT")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

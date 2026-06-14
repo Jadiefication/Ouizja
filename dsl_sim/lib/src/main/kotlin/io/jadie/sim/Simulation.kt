@@ -2,6 +2,7 @@ package io.jadie.sim
 
 import io.jadie.OuizjaLoader
 import io.jadie.SimState
+import org.spongepowered.noise.module.NoiseModule
 
 class Simulation {
 
@@ -237,6 +238,23 @@ class Simulation {
                 if (d_x * d_x + d_y * d_y <= r_2) {
                     materialMask[index] = material
                 }
+            }
+        }
+    }
+
+    fun<T : NoiseModule> noise(noise: T, scale: Double = 1.0, apply: Simulation.(Double, Int, Int) -> Unit) {
+        for (x in 0 until length) {
+            for (y in 0 until height) {
+
+                val nAverage = (
+                        noise.get((x - 1) * scale, y * scale, 0.0) +
+                                noise.get((x + 1) * scale, y * scale, 0.0) +
+                                noise.get(x * scale, (y - 1) * scale, 0.0) +
+                                noise.get(x * scale, (y + 1) * scale, 0.0) +
+                                noise.get(x * scale, y * scale, 0.0)
+                        ) / 5.0
+
+                apply(nAverage, x, y)
             }
         }
     }
