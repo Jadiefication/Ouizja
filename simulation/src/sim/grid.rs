@@ -34,7 +34,13 @@ impl Grid {
             .iter()
             .copied()
             .fold(0.0f64, f64::max);
-        let delta_t = if max_alpha > 0.0 { 0.25 / max_alpha } else { 1.0 };
+
+        let max_dt_bound = 0.5;
+        let delta_t = if max_alpha > 0.0 {
+            (0.25 / max_alpha).min(max_dt_bound)
+        } else {
+            max_dt_bound
+        };
         let mut next_field = self.cells.clone();
 
         let mut global_wind = Vec2 { x: 0.0, y: 0.0 };
@@ -80,7 +86,7 @@ impl Grid {
                             } else {
                                 if i + 1 >= self.length { external_wind_temp } else { right_val }
                             };
-                            advection_x = global_wind.x.abs() * (source_x_temp - center_val) * delta_t;
+                            advection_x = global_wind.x.abs() * (source_x_temp - center_val);
 
                             let buoyancy_wind = if down_val > center_val {
                                 (down_val - center_val) * 0.1
@@ -95,19 +101,29 @@ impl Grid {
                             } else {
                                 if j + 1 >= self.height { external_wind_temp } else { up_val }
                             };
-                            advection_y = total_wind_y.abs() * (source_y_temp - center_val) * delta_t;
+                            advection_y = total_wind_y.abs() * (source_y_temp - center_val);
                         }
 
-                        let delta_t_conduction = alpha * delta_t * laplacian;
-                        let delta_t_advection  = advection_x + advection_y;
-
-                        let total_delta_t = delta_t_conduction + delta_t_advection;
-
                         let cp = cell.get_capacity();
-                        let dq = total_delta_t * cp;
-                        let dq_newton = Cell::newton_cooling(delta_t, total_delta_t);
+                        let delta_t_conduction = alpha * delta_t * laplacian * cp;
+                        let delta_t_advection  = (advection_x + advection_y) * delta_t * cp;
 
-                        cell.enthalpy = source_row[j].enthalpy + dq  - source_row[j].vacuum_radiation(center_val, delta_t) - dq_newton;
+                        let dq = delta_t_conduction + delta_t_advection;
+
+                        Cell::newton_cooling(delta_t, center_val - T_AMBIENT);
+
+                        let safe_temp = center_val.max(0.0);
+
+                        let dq_rad = source_row[j].vacuum_radiation(safe_temp, delta_t);
+                        let dq_newton = Cell::newton_cooling(delta_t, safe_temp - T_AMBIENT);
+
+                        let mut new_enthalpy = source_row[j].enthalpy + dq - dq_rad - dq_newton;
+
+                        if new_enthalpy < 0.0 {
+                            new_enthalpy = 0.0;
+                        }
+
+                        cell.enthalpy = new_enthalpy;
                         cell.update_state_from_enthalpy();
 
                         if let Some(ref mut quantum) = cell.mask.quantum {

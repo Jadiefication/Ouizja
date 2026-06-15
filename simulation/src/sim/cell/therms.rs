@@ -1,5 +1,6 @@
 #[derive(Clone, Copy, Debug)]
 pub struct ThermalProperties {
+    pub volatile: bool,
     pub specific_heat_solid: f64,
     pub specific_heat_liquid: Option<f64>,
     pub specific_heat_gas: Option<f64>,

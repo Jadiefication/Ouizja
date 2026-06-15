@@ -33,6 +33,7 @@ impl Material {
     pub fn thermal_properties(&self) -> ThermalProperties {
         match self {
             Copper => ThermalProperties {
+                volatile: true,
                 specific_heat_solid: 385.0,
                 specific_heat_liquid: Some(490.0),
                 specific_heat_gas: Some(380.0),
@@ -44,6 +45,7 @@ impl Material {
                 emissivity: 0.05,
             },
             Water => ThermalProperties {
+                volatile: true,
                 specific_heat_solid: 2108.0,
                 specific_heat_liquid: Some(4184.0),
                 specific_heat_gas: Some(1996.0),
@@ -55,6 +57,7 @@ impl Material {
                 emissivity: 0.96,
             },
             Aluminum => ThermalProperties {
+                volatile: true,
                 specific_heat_solid: 900.0,
                 specific_heat_liquid: Some(1180.0),
                 specific_heat_gas: Some(465.0),
@@ -66,6 +69,7 @@ impl Material {
                 emissivity: 0.09,
             },
             Iron => ThermalProperties {
+                volatile: true,
                 specific_heat_solid: 450.0,
                 specific_heat_liquid: Some(820.0),
                 specific_heat_gas: Some(570.0),
@@ -77,6 +81,7 @@ impl Material {
                 emissivity: 0.25,
             },
             Air => ThermalProperties {
+                volatile: true,
                 specific_heat_solid: 1005.0,
                 specific_heat_liquid: Some(1005.0),
                 specific_heat_gas: Some(1005.0),
@@ -88,6 +93,7 @@ impl Material {
                 emissivity: 0.90,
             },
             Glass => ThermalProperties {
+                volatile: false,
                 specific_heat_solid: 840.0,
                 specific_heat_liquid: None,
                 specific_heat_gas: None,
@@ -99,6 +105,7 @@ impl Material {
                 emissivity: 0.92,
             },
             Wood => ThermalProperties {
+                volatile: false,
                 specific_heat_solid: 1700.0,
                 specific_heat_liquid: None,
                 specific_heat_gas: None,
@@ -110,6 +117,7 @@ impl Material {
                 emissivity: 0.90,
             },
             Stone => ThermalProperties {
+                volatile: false,
                 specific_heat_solid: 840.0,
                 specific_heat_liquid: None,
                 specific_heat_gas: None,
@@ -121,7 +129,8 @@ impl Material {
                 emissivity: 0.88,
             },
             Barrier => ThermalProperties {
-                specific_heat_solid: f64::MAX,
+                volatile: false,
+                specific_heat_solid: 1.0,
                 specific_heat_liquid: None,
                 specific_heat_gas: None,
                 latent_fusion: None,

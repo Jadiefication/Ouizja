@@ -15,7 +15,17 @@ pub struct Cell {
 impl Cell {
     pub fn update_state_from_enthalpy(&mut self) -> f64 {
         let props = self.mask.material.thermal_properties();
-        let milestones = EnthalpyMilestones::from_properties(&props);
+        if !props.volatile {
+
+        }
+        let milestones = if !props.volatile {
+            EnthalpyMilestones {
+                h_melting:  f64::MAX,
+                h_fused:    f64::MAX,
+                h_boiling:  f64::MAX,
+                h_vaporized: f64::MAX,
+            }
+        } else { EnthalpyMilestones::from_properties(&props) };
 
         let is_sublimating_material = self.mask.material == Air || self.mask.material == Water;
         let skip_liquid = is_sublimating_material && (props.melting_point == props.boiling_point);
@@ -65,6 +75,9 @@ impl Cell {
 
     pub fn get_temperature(&self) -> f64 {
         let props = self.mask.material.thermal_properties();
+        if !props.volatile {
+            return self.enthalpy / props.specific_heat_solid
+        };
         let milestones = EnthalpyMilestones::from_properties(&props);
         let is_sublimating_material = self.mask.material == Air || self.mask.material == Water;
         let skip_liquid = is_sublimating_material && (props.melting_point == props.boiling_point);
