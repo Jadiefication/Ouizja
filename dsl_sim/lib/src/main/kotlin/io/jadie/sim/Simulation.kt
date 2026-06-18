@@ -4,6 +4,9 @@ import io.jadie.OuizjaLoader
 import io.jadie.SimState
 import org.spongepowered.noise.module.NoiseModule
 
+/**
+ * DSL class for configuring a simulation.
+ */
 class Simulation {
     internal var length = 256
     internal var height = 256
@@ -12,8 +15,14 @@ class Simulation {
     internal var sourceMask = mutableListOf<Boolean>()
     internal var quantum = mutableListOf<Double>()
     internal val winds = mutableListOf<Double>()
+    /**
+     * The ambient temperature of the simulation in Kelvin.
+     */
     var ambient: Double = 293.15
 
+    /**
+     * Sets the grid dimensions.
+     */
     fun grid(
         length: Int,
         height: Int,
@@ -22,10 +31,16 @@ class Simulation {
         this.height = height
     }
 
+    /**
+     * Sets the material for the entire grid.
+     */
     fun globalMaterial(material: Material) {
         materialMask = MutableList(length * height) { material }
     }
 
+    /**
+     * Sets the material for a specific rectangular area.
+     */
     fun material(
         material: Material,
         fromX: Int,
@@ -55,10 +70,16 @@ class Simulation {
         }
     }
 
+    /**
+     * Sets the temperature for the entire grid.
+     */
     fun globalTemperature(temp: Double) {
         temps = MutableList(length * height) { temp }
     }
 
+    /**
+     * Sets the temperature at a specific cell.
+     */
     fun temp(
         temp: Double,
         x: Int,
@@ -83,6 +104,9 @@ class Simulation {
         }
     }
 
+    /**
+     * Sets the temperature for a specific rectangular area.
+     */
     fun temp(
         temp: Double,
         fromX: Int,
@@ -112,6 +136,9 @@ class Simulation {
         }
     }
 
+    /**
+     * Adds a heat barrier in a specific rectangular area.
+     */
     fun barrier(
         fromX: Int,
         toX: Int,
@@ -121,6 +148,9 @@ class Simulation {
         material(Material.BARRIER, fromX, toX, fromY, toY)
     }
 
+    /**
+     * Marks a specific cell as a heat source.
+     */
     fun source(
         x: Int,
         y: Int,
@@ -140,6 +170,12 @@ class Simulation {
         }
     }
 
+    /**
+     * Adds a wind effect to the simulation.
+     *
+     * @param force A [Pair] representing the wind force vector.
+     * @param temp The temperature of the wind.
+     */
     fun wind(
         force: Pair<Double, Double>,
         temp: Double = 0.0,
@@ -147,6 +183,9 @@ class Simulation {
         winds.addAll(listOf(force.first, force.second, temp))
     }
 
+    /**
+     * Configures a quantum superposition effect.
+     */
     fun superposition(
         x: Int,
         y: Int,
@@ -156,6 +195,9 @@ class Simulation {
         quantum.addAll(listOf(x.toDouble(), y.toDouble(), kappa, index.toDouble()))
     }
 
+    /**
+     * Sets cells within a circular area as heat sources or sinks.
+     */
     fun circle(
         centerX: Int,
         centerY: Int,
@@ -230,6 +272,9 @@ class Simulation {
         }
     }
 
+    /**
+     * Sets the material for cells within a circular area.
+     */
     fun circle(
         centerX: Int,
         centerY: Int,
@@ -267,6 +312,13 @@ class Simulation {
         }
     }
 
+    /**
+     * Applies a noise function to the simulation.
+     *
+     * @param noise The noise module to use.
+     * @param scale The scale of the noise.
+     * @param apply A lambda that defines how to apply the noise value to a cell.
+     */
     fun <T : NoiseModule> noise(
         noise: T,
         scale: Double = 1.0,
@@ -288,13 +340,22 @@ class Simulation {
         }
     }
 
+    /**
+     * Sets the ambient temperature.
+     */
     fun ambient(new: Double) {
         ambient = new
     }
 
+    /**
+     * Returns the total number of cells in the grid.
+     */
     fun size(): Int = length * height
 }
 
+/**
+ * A built and ready-to-run simulation instance.
+ */
 data class BuiltSim(
     internal val height: Int,
     internal val length: Int,
@@ -305,6 +366,9 @@ data class BuiltSim(
     internal var temps: DoubleArray,
     internal val ambient: Double,
 ) {
+    /**
+     * Runs the simulation for a specified number of iterations and returns the final state.
+     */
     fun run(iterations: Long): SimState {
         val sim =
             OuizjaLoader.createSim(
@@ -323,6 +387,10 @@ data class BuiltSim(
         return state
     }
 
+    /**
+     * Runs the simulation in steps, executing the predicate after each step.
+     * Stops if the predicate returns true.
+     */
     fun run(
         iterations: Long,
         predicate: (SimState) -> Boolean,
@@ -384,6 +452,9 @@ data class BuiltSim(
     }
 }
 
+/**
+ * Builds a simulation using the provided [builder] DSL.
+ */
 fun simulate(builder: Simulation.() -> Unit): BuiltSim {
     val simulation = Simulation()
     simulation.builder()
@@ -435,6 +506,9 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
     return built
 }
 
+/**
+ * Returns a boolean mask where `true` indicates a non-solid cell.
+ */
 val BuiltSim.nonSolidMask: BooleanArray
     get() =
         materialMask
@@ -443,6 +517,9 @@ val BuiltSim.nonSolidMask: BooleanArray
                 material.type != Type.SOLID
             }.toBooleanArray()
 
+/**
+ * Converts the material mask ID array to an array of [Material] objects.
+ */
 fun BuiltSim.toMaterialArray(): Array<Material> =
     materialMask
         .map { id ->
@@ -451,6 +528,9 @@ fun BuiltSim.toMaterialArray(): Array<Material> =
             } ?: Material.BARRIER
         }.toTypedArray()
 
+/**
+ * Creates a new [BuiltSim] by applying the state from [newState] to [oldState].
+ */
 fun transform(
     oldState: BuiltSim,
     newState: SimState,

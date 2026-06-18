@@ -1,4 +1,6 @@
+/// Utility trait for safe division, avoiding division by zero.
 pub trait SafeDiv {
+    /// Returns 1.0 if the value is 0.0, otherwise returns the value itself.
     fn safe(self) -> Self;
 }
 

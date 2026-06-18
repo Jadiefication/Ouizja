@@ -2,6 +2,13 @@ package io.jadie
 
 import io.jadie.sim.Type
 
+/**
+ * Represents the state of a simulation at a specific point in time.
+ *
+ * @property field A 2D array of temperatures for each cell in the grid.
+ * @property quantum A collection of triples representing position (x, y) and an associated value (gamma).
+ * @property states A 2D array of the physical state ([Type]) for each cell in the grid.
+ */
 data class SimState(
     val field: Array<DoubleArray>,
     // [x, y, gamma]

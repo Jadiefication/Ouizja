@@ -12,6 +12,8 @@ use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObj
 use jni::sys::{jdouble, jint, jlong};
 use jni::{EnvUnowned, JValue, jni_sig, jni_str};
 
+/// JNI entry point to create a new simulation instance.
+/// Returns a raw pointer to the `Grid` object as a `jlong`.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
@@ -124,6 +126,8 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
         .resolve::<ThrowRuntimeExAndDefault>()
 }
 
+/// JNI entry point to run the simulation for a specified number of iterations.
+/// Returns a `SimState` object containing the results.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
@@ -266,6 +270,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
         .resolve::<ThrowRuntimeExAndDefault>()
 }
 
+/// JNI entry point to free the memory allocated for the simulation instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_freeSim(
     _env_unowned: EnvUnowned,

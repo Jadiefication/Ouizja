@@ -7,13 +7,18 @@ use crate::sim::material::Material::{Air, Water};
 pub const HEAT_TRANSFER_C: f64 = 5.0;
 pub const STEFANS_C: f64 = 5.670e-8;
 
+/// Represents a single cell in the simulation grid.
 #[derive(Clone, Copy)]
 pub struct Cell {
+    /// Physical and material properties of the cell.
     pub mask: Mask,
+    /// Current enthalpy (heat energy) of the cell.
     pub enthalpy: f64,
 }
 
 impl Cell {
+    /// Updates the physical state of the cell based on its current enthalpy.
+    /// Returns the new temperature.
     pub fn update_state_from_enthalpy(&mut self) -> f64 {
         let props = self.mask.material.thermal_properties();
         let milestones = if !props.volatile {
@@ -87,6 +92,7 @@ impl Cell {
             + (excess_energy / props.specific_heat_gas.unwrap_or(1.0).safe())
     }
 
+    /// Calculates the temperature of the cell based on its enthalpy and material properties.
     pub fn get_temperature(&self) -> f64 {
         let props = self.mask.material.thermal_properties();
         if !props.volatile {
@@ -131,6 +137,7 @@ impl Cell {
         }
     }
 
+    /// Returns the specific heat capacity of the cell in its current state.
     pub fn get_capacity(&self) -> f64 {
         let props = self.mask.material.thermal_properties();
         match self.mask.status {
@@ -147,6 +154,7 @@ impl Cell {
         }
     }
 
+    /// Calculates the enthalpy for a given temperature and material properties.
     pub fn calculate_forward_enthalpy(t: f64, props: &ThermalProperties) -> f64 {
         let t_melt = props.melting_point.unwrap_or(f64::MAX);
         let t_boil = props.boiling_point.unwrap_or(f64::MAX);
@@ -176,10 +184,12 @@ impl Cell {
         h_vaporized + (c_gas * (t - t_boil))
     }
 
+    /// Calculates the heat loss due to convective cooling (Newton's law of cooling).
     pub fn newton_cooling(d_t: f64, d_temp: f64) -> f64 {
         HEAT_TRANSFER_C * d_t * d_temp
     }
 
+    /// Calculates the heat loss due to radiation in a vacuum (Stefan-Boltzmann law).
     pub fn vacuum_radiation(&self, temp: f64, d_t: f64) -> f64 {
         self.mask.material.thermal_properties().emissivity * STEFANS_C * temp.powi(4) * d_t
     }

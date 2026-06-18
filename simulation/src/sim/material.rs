@@ -3,6 +3,7 @@ use crate::sim::material::Material::{
     Air, Aluminum, Barrier, Copper, Glass, Iron, Stone, Water, Wood,
 };
 
+/// Enumerates the different materials available in the simulation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Material {
@@ -14,10 +15,12 @@ pub enum Material {
     Glass = 5,
     Stone = 6,
     Air = 7,
+    /// A heat barrier with zero diffusivity.
     Barrier = 8,
 }
 
 impl Material {
+    /// Finds a material by its numeric ID. Defaults to `Barrier` if not found.
     pub fn find_by_id(id: u8) -> Material {
         match id {
             0 => Copper,
@@ -32,6 +35,7 @@ impl Material {
         }
     }
 
+    /// Returns the thermal properties (specific heat, latent heat, etc.) for the material.
     pub fn thermal_properties(&self) -> ThermalProperties {
         match self {
             Copper => ThermalProperties {

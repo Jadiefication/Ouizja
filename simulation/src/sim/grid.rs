@@ -8,16 +8,23 @@ use rayon::iter::ParallelIterator;
 use rayon::prelude::{IntoParallelRefIterator, ParallelSlice, ParallelSliceMut};
 use std::cmp::Ordering::Equal;
 
+/// The main simulation grid containing all cells and global properties.
 pub struct Grid {
+    /// Width of the grid.
     length: usize,
+    /// Height of the grid.
     height: usize,
 
+    /// Flat collection of all cells in the grid.
     pub cells: Vec<Cell>,
+    /// Collection of wind vectors affecting the simulation.
     winds: Vec<Wind>,
+    /// Ambient temperature of the environment.
     t_ambient: f64,
 }
 
 impl Grid {
+    /// Creates a new simulation grid.
     pub fn new(
         cells: Vec<Cell>,
         length: usize,
@@ -34,6 +41,8 @@ impl Grid {
         }
     }
 
+    /// Executes the simulation for a given number of iterations.
+    /// Uses parallel processing for cell updates.
     pub fn run(&mut self, iterations: usize) {
         let max_alpha = self
             .cells

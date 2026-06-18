@@ -1,5 +1,8 @@
 package io.jadie.sim
 
+/**
+ * Defines the materials available for cells in the simulation.
+ */
 enum class Material {
     COPPER {
         override val type: Type = Type.SOLID
@@ -33,14 +36,27 @@ enum class Material {
         override val type: Type = Type.GAS
         override val id: Int = 7
     },
+    /**
+     * A material that acts as a heat barrier (diffusivity = 0).
+     */
     BARRIER {
         override val type: Type = Type.SOLID
         override val id: Int = 8
     }, ;
 
+    /**
+     * Initial physical state of the material.
+     */
     abstract val type: Type
+
+    /**
+     * Numeric identifier used for JNI communication.
+     */
     abstract val id: Int
 
+    /**
+     * Thermal diffusivity of the material.
+     */
     val diffusivity: Double
         get() =
             when (this) {
