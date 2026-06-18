@@ -14,22 +14,29 @@ pub struct Grid {
 
     pub cells: Vec<Cell>,
     winds: Vec<Wind>,
-    t_ambient: f64
+    t_ambient: f64,
 }
 
 impl Grid {
-    pub fn new(cells: Vec<Cell>, length: usize, height: usize, winds: Vec<Wind>, t_ambient: f64) -> Self {
+    pub fn new(
+        cells: Vec<Cell>,
+        length: usize,
+        height: usize,
+        winds: Vec<Wind>,
+        t_ambient: f64,
+    ) -> Self {
         Self {
             length,
             height,
             cells,
             winds,
-            t_ambient
+            t_ambient,
         }
     }
 
     pub fn run(&mut self, iterations: usize) {
-        let max_alpha = self.cells
+        let max_alpha = self
+            .cells
             .iter()
             .map(|it| it.mask.alpha)
             .collect::<Vec<f64>>()
@@ -46,7 +53,9 @@ impl Grid {
         let mut next_field = self.cells.clone();
 
         let mut global_wind = Vec2 { x: 0.0, y: 0.0 };
-        self.winds.iter().for_each(|it| global_wind = global_wind + it.force);
+        self.winds
+            .iter()
+            .for_each(|it| global_wind = global_wind + it.force);
         let external_wind_temp = if !self.winds.is_empty() {
             self.winds.iter().map(|it| it.temp).sum::<f64>() / (self.winds.len() as f64)
         } else {
@@ -54,28 +63,28 @@ impl Grid {
         };
 
         for n in 0..iterations {
-
-            let v_max = self.cells
+            let v_max = self
+                .cells
                 .par_iter()
                 .enumerate()
                 .map(|(j, it)| {
-                let row = j % self.height;
+                    let row = j % self.height;
 
-                let center_val = it.get_temperature();
+                    let center_val = it.get_temperature();
 
-                let down_j  = if row == 0 { 0 } else { row - 1 };
-                let down_val  = self.cells[down_j].get_temperature();
+                    let down_j = if row == 0 { 0 } else { row - 1 };
+                    let down_val = self.cells[down_j].get_temperature();
 
-                let buoyancy_wind = if down_val > center_val {
-                    (down_val - center_val) * 0.1
-                } else {
-                    0.0
-                };
+                    let buoyancy_wind = if down_val > center_val {
+                        (down_val - center_val) * 0.1
+                    } else {
+                        0.0
+                    };
 
-                (buoyancy_wind + global_wind.y).abs() + global_wind.x
-            }).max_by(|a, b|
-                a.partial_cmp(b).unwrap_or(Equal)
-            ).unwrap_or(0.0);
+                    (buoyancy_wind + global_wind.y).abs() + global_wind.x
+                })
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(Equal))
+                .unwrap_or(0.0);
 
             delta_t = delta_t.min(1.0 / v_max);
 
@@ -91,33 +100,36 @@ impl Grid {
                         let alpha = source_row[j].mask.alpha;
                         let center_val = source_row[j].get_temperature();
 
-                        let left_i  = if i == 0 { 0 } else { i - 1 };
+                        let left_i = if i == 0 { 0 } else { i - 1 };
                         let right_i = if i + 1 >= self.length { i } else { i + 1 };
-                        let down_j  = if j == 0 { 0 } else { j - 1 };
-                        let up_j    = if j + 1 >= self.height { j } else { j + 1 };
+                        let down_j = if j == 0 { 0 } else { j - 1 };
+                        let up_j = if j + 1 >= self.height { j } else { j + 1 };
 
-                        let left_val  = if self.cells[left_i * self.height + j].mask.material == Barrier {
-                            center_val
-                        } else {
-                            self.cells[left_i * self.height + j].get_temperature()
-                        };
-                        let right_val = if self.cells[right_i * self.height + j].mask.material == Barrier {
-                            center_val
-                        } else {
-                            self.cells[right_i * self.height + j].get_temperature()
-                        };
-                        let down_val  = if source_row[down_j].mask.material == Barrier {
+                        let left_val =
+                            if self.cells[left_i * self.height + j].mask.material == Barrier {
+                                center_val
+                            } else {
+                                self.cells[left_i * self.height + j].get_temperature()
+                            };
+                        let right_val =
+                            if self.cells[right_i * self.height + j].mask.material == Barrier {
+                                center_val
+                            } else {
+                                self.cells[right_i * self.height + j].get_temperature()
+                            };
+                        let down_val = if source_row[down_j].mask.material == Barrier {
                             center_val
                         } else {
                             source_row[down_j].get_temperature()
                         };
-                        let up_val    = if source_row[up_j].mask.material == Barrier {
+                        let up_val = if source_row[up_j].mask.material == Barrier {
                             center_val
                         } else {
                             source_row[up_j].get_temperature()
                         };
 
-                        let laplacian = left_val + right_val + up_val + down_val - (center_val * 4.0);
+                        let laplacian =
+                            left_val + right_val + up_val + down_val - (center_val * 4.0);
 
                         // --- PHASE 2: CONVECTION & ADVECTION ---
                         let mut advection_x = 0.0;
@@ -127,7 +139,11 @@ impl Grid {
                             let source_x_temp = if global_wind.x > 0.0 {
                                 if i == 0 { external_wind_temp } else { left_val }
                             } else {
-                                if i + 1 >= self.length { external_wind_temp } else { right_val }
+                                if i + 1 >= self.length {
+                                    external_wind_temp
+                                } else {
+                                    right_val
+                                }
                             };
                             advection_x = global_wind.x.abs() * (source_x_temp - center_val);
 
@@ -142,14 +158,18 @@ impl Grid {
                             let source_y_temp = if total_wind_y > 0.0 {
                                 if j == 0 { external_wind_temp } else { down_val }
                             } else {
-                                if j + 1 >= self.height { external_wind_temp } else { up_val }
+                                if j + 1 >= self.height {
+                                    external_wind_temp
+                                } else {
+                                    up_val
+                                }
                             };
                             advection_y = total_wind_y.abs() * (source_y_temp - center_val);
                         }
 
                         let cp = cell.get_capacity();
                         let delta_t_conduction = alpha * delta_t * laplacian * cp;
-                        let delta_t_advection  = (advection_x + advection_y) * delta_t * cp;
+                        let delta_t_advection = (advection_x + advection_y) * delta_t * cp;
 
                         let dq = delta_t_conduction + delta_t_advection;
 

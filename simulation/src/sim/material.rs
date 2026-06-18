@@ -1,5 +1,7 @@
 use crate::sim::cell::therms::ThermalProperties;
-use crate::sim::material::Material::{Air, Aluminum, Barrier, Copper, Glass, Iron, Stone, Water, Wood};
+use crate::sim::material::Material::{
+    Air, Aluminum, Barrier, Copper, Glass, Iron, Stone, Water, Wood,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -26,7 +28,7 @@ impl Material {
             5 => Glass,
             6 => Stone,
             7 => Air,
-            _ => Barrier
+            _ => Barrier,
         }
     }
 
@@ -139,7 +141,7 @@ impl Material {
                 boiling_point: None,
                 diffusivity: 0.0,
                 emissivity: 0.0,
-            }
+            },
         }
     }
 }

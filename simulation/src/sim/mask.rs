@@ -7,7 +7,7 @@ pub struct Mask {
     pub source: bool,
     pub alpha: f64,
     pub material: Material,
-    pub quantum: Option<Quantum>
+    pub quantum: Option<Quantum>,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -16,10 +16,6 @@ pub enum Status {
     Solid = 0,
     Liquid = 1,
     Gas = 2,
-    Fusing {
-        l_energy: f64
-    } = 3,
-    Vaporizing {
-        l_energy: f64
-    } = 4
+    Fusing { l_energy: f64 } = 3,
+    Vaporizing { l_energy: f64 } = 4,
 }

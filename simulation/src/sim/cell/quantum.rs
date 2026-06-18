@@ -2,7 +2,7 @@
 pub struct Quantum {
     pub gamma: f64,
     pub kappa: f64,
-    pub index: i32
+    pub index: i32,
 }
 
 impl Quantum {
