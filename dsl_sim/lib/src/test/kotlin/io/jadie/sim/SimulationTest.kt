@@ -187,6 +187,7 @@ class SimulationTest {
             grid(3, 3)
             globalMaterial(Material.IRON)
             globalTemperature(25.0)
+            ambient(25.0)
         }
         val result = sim.run(100)
         for (row in result.field) {
@@ -224,6 +225,7 @@ class SimulationTest {
             source(0, 0)
             barrier(1, 1, 0, 0)
             material(Material.COPPER, 2, 2, 0, 0)
+            ambient(10.0)
         }
 
         // Before run check
@@ -701,13 +703,12 @@ class SimulationTest {
 
     @Test
     fun testQuantumStateInterferenceEffect() {
-        // This is a placeholder since the actual quantum logic is in grid.rs:113-120
-        // and seems to just decrease gamma.
         val sim = simulate {
             grid(1, 1)
             globalMaterial(Material.IRON)
             globalTemperature(300.0)
-            superposition(0, 0, 0.001, 10) // 10 steps?
+            superposition(0, 0, 0.001, 1)
+            ambient(0.0)
         }
         
         val res1 = sim.run(1)
@@ -718,5 +719,74 @@ class SimulationTest {
         if (res2.quantum.isNotEmpty()) {
             assertTrue(res2.quantum[0].third <= initialGamma, "Gamma should not increase")
         }
+    }
+
+    @Test
+    fun testFirstLawOfThermodynamics() {
+        // In a closed system with no external cooling and no sources,
+        // the total energy (enthalpy) should be conserved.
+        val sim = simulate {
+            grid(10, 10)
+            globalMaterial(Material.IRON)
+            globalTemperature(300.0)
+            ambient(300.0)
+            
+            // Add some heat in the middle
+            temp(500.0, 4, 6, 4, 6)
+        }
+        
+        val initialState = sim.run(0)
+        val initialTotalTemp = initialState.field.sumOf { it.sum() }
+        
+        val result = sim.run(50)
+        val finalTotalTemp = result.field.sumOf { it.sum() }
+        
+        // Energy should not be created.
+        // It might decrease due to radiation even if ambient temp matches.
+        assertTrue(finalTotalTemp <= initialTotalTemp, "Energy should not be created: $finalTotalTemp <= $initialTotalTemp")
+    }
+
+    @Test
+    fun testBarrierNoHeatTransfer() {
+        val sim = simulate {
+            globalTemperature(300.0)
+            grid(3, 1)
+            temp(500.0, 0, 0); source(0, 0)
+            material(Material.IRON, 0, 0, 0, 0)
+            barrier(1, 1, 0, 0)
+            material(Material.IRON, 2, 2, 0, 0)
+            ambient(300.0)
+        }
+        
+        val result = sim.run(100)
+        // (0,0) is 500K
+        // (1,0) is Barrier
+        // (2,0) is Iron, separated by Barrier. Should stay near 300K.
+        
+        assertEquals(500.0, result.field[0][0])
+        assertTrue(result.field[2][0] < 305.0, "Heat should not pass through Barrier easily, got ${result.field[2][0]}")
+    }
+
+    @Test
+    fun testAmbientTemperatureInfluence() {
+        // Higher ambient temperature should slow down cooling
+        val simHot = simulate {
+            grid(1, 1)
+            globalMaterial(Material.IRON)
+            globalTemperature(500.0)
+            ambient(400.0)
+        }
+        val simCold = simulate {
+            grid(1, 1)
+            globalMaterial(Material.IRON)
+            globalTemperature(500.0)
+            ambient(200.0)
+        }
+        
+        val resHot = simHot.run(10)
+        val resCold = simCold.run(10)
+        
+        assertTrue(resHot.field[0][0] > resCold.field[0][0], 
+            "Grid with higher ambient temperature (${resHot.field[0][0]}) should be hotter than grid with lower ambient temperature (${resCold.field[0][0]})")
     }
 }

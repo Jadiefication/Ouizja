@@ -96,10 +96,26 @@ impl Grid {
                         let down_j  = if j == 0 { 0 } else { j - 1 };
                         let up_j    = if j + 1 >= self.height { j } else { j + 1 };
 
-                        let left_val  = self.cells[left_i * self.height + j].get_temperature();
-                        let right_val = self.cells[right_i * self.height + j].get_temperature();
-                        let down_val  = source_row[down_j].get_temperature();
-                        let up_val    = source_row[up_j].get_temperature();
+                        let left_val  = if self.cells[left_i * self.height + j].mask.material == Barrier {
+                            center_val
+                        } else {
+                            self.cells[left_i * self.height + j].get_temperature()
+                        };
+                        let right_val = if self.cells[right_i * self.height + j].mask.material == Barrier {
+                            center_val
+                        } else {
+                            self.cells[right_i * self.height + j].get_temperature()
+                        };
+                        let down_val  = if source_row[down_j].mask.material == Barrier {
+                            center_val
+                        } else {
+                            source_row[down_j].get_temperature()
+                        };
+                        let up_val    = if source_row[up_j].mask.material == Barrier {
+                            center_val
+                        } else {
+                            source_row[up_j].get_temperature()
+                        };
 
                         let laplacian = left_val + right_val + up_val + down_val - (center_val * 4.0);
 
