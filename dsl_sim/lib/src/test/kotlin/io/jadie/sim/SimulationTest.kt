@@ -365,6 +365,7 @@ class SimulationTest {
             grid(size, size)
             globalMaterial(Material.IRON)
             globalTemperature(initialTemp)
+            ambient(0.0)
         }
         
         val iterations = 5L

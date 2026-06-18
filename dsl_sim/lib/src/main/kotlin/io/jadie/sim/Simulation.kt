@@ -13,6 +13,7 @@ class Simulation {
     internal var sourceMask = mutableListOf<Boolean>()
     internal var quantum = mutableListOf<Double>()
     internal val winds = mutableListOf<Double>()
+    var ambient: Double = 293.15
 
     fun grid(length: Int, height: Int) {
         this.length = length
@@ -258,6 +259,10 @@ class Simulation {
             }
         }
     }
+    
+    fun ambient(new: Double) {
+        ambient = new
+    }
 
     fun size(): Int {
         return length * height
@@ -272,6 +277,7 @@ data class BuiltSim(
     internal var quantum: DoubleArray,
     internal val winds: DoubleArray,
     internal var temps: DoubleArray,
+    internal val ambient: Double
 ) {
     fun run(iterations: Long): SimState {
         val sim = OuizjaLoader.createSim(
@@ -282,6 +288,7 @@ data class BuiltSim(
             winds,
             length,
             height,
+            ambient
         )
 
         val state = OuizjaLoader.runSim(iterations, sim, length, height)
@@ -386,7 +393,8 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
         simulation.materialMask.map { it.id }.toIntArray(),
         simulation.quantum.toDoubleArray(),
         simulation.winds.toDoubleArray(),
-        simulation.temps.toDoubleArray()
+        simulation.temps.toDoubleArray(),
+        simulation.ambient
     )
     return built
 }
@@ -424,6 +432,7 @@ fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
         newQuantum,
         oldState.winds,
         newField,
+        oldState.ambient
     )
     return newSim
 }

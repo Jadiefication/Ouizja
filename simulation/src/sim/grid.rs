@@ -1,31 +1,30 @@
-use std::cmp::min;
-use std::cmp::Ordering::Equal;
-use haje::vec::vec2::Vec2;
-use rayon::iter::IndexedParallelIterator;
-use rayon::iter::ParallelIterator;
-use rayon::prelude::{IntoParallelRefIterator, ParallelSlice, ParallelSliceMut};
 use crate::sim::cell::cell::Cell;
 use crate::sim::mask::Status::Solid;
 use crate::sim::material::Material::Barrier;
 use crate::sim::wind::Wind;
-
-pub const T_AMBIENT: f64 = 293.15;
+use haje::vec::vec2::Vec2;
+use rayon::iter::IndexedParallelIterator;
+use rayon::iter::ParallelIterator;
+use rayon::prelude::{IntoParallelRefIterator, ParallelSlice, ParallelSliceMut};
+use std::cmp::Ordering::Equal;
 
 pub struct Grid {
     length: usize,
     height: usize,
 
     pub cells: Vec<Cell>,
-    winds: Vec<Wind>
+    winds: Vec<Wind>,
+    t_ambient: f64
 }
 
 impl Grid {
-    pub fn new(cells: Vec<Cell>, length: usize, height: usize, winds: Vec<Wind>) -> Self {
+    pub fn new(cells: Vec<Cell>, length: usize, height: usize, winds: Vec<Wind>, t_ambient: f64) -> Self {
         Self {
             length,
             height,
             cells,
-            winds
+            winds,
+            t_ambient
         }
     }
 
@@ -141,11 +140,11 @@ impl Grid {
                         let safe_temp = center_val.max(0.0);
 
                         let dq_rad = source_row[j].vacuum_radiation(safe_temp, delta_t);
-                        let dq_newton = Cell::newton_cooling(delta_t, safe_temp - T_AMBIENT);
+                        let dq_newton = Cell::newton_cooling(delta_t, safe_temp - self.t_ambient);
 
                         let mut new_enthalpy = source_row[j].enthalpy + dq - dq_rad - dq_newton;
 
-                        if new_enthalpy < 0.0 {
+                        if new_enthalpy < 0.0 || new_enthalpy.is_nan() {
                             new_enthalpy = 0.0;
                         }
 

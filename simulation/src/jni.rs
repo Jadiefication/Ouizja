@@ -2,7 +2,7 @@ use haje::vec::vec2::Vec2;
 use crate::sim::grid::Grid;
 use jni::errors::{Error, ThrowRuntimeExAndDefault};
 use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObjectArray};
-use jni::sys::{jint, jlong};
+use jni::sys::{jdouble, jint, jlong};
 use jni::{jni_sig, jni_str, EnvUnowned, JValue};
 use crate::sim::cell::cell::Cell;
 use crate::sim::cell::quantum::Quantum;
@@ -23,6 +23,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     winds: JDoubleArray,
     length: jint,
     height: jint,
+    tAmbient: jdouble
 ) -> jlong {
     env_unowned.with_env(|env| {
         if length < 1 || height < 1 {
@@ -102,7 +103,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
             });
         }
 
-        let grid = Grid::new(cells, length as usize, height as usize, actual_winds);
+        let grid = Grid::new(cells, length as usize, height as usize, actual_winds, tAmbient);
         let g_box = Box::new(grid);
 
         return Ok::<i64, Error>(Box::into_raw(g_box) as i64);

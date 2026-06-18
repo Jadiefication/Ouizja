@@ -61,6 +61,7 @@ class OuizjaLoader {
             winds: DoubleArray,
             length: Int,
             height: Int,
+            tAmbient: Double
         ): Long
 
         @JvmStatic
