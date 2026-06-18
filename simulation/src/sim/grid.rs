@@ -1,9 +1,12 @@
+use std::cmp::min;
+use std::cmp::Ordering::Equal;
 use haje::vec::vec2::Vec2;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::ParallelIterator;
-use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use rayon::prelude::{IntoParallelRefIterator, ParallelSlice, ParallelSliceMut};
 use crate::sim::cell::cell::Cell;
 use crate::sim::mask::Status::Solid;
+use crate::sim::material::Material::Barrier;
 use crate::sim::wind::Wind;
 
 pub const T_AMBIENT: f64 = 293.15;
@@ -36,7 +39,7 @@ impl Grid {
             .fold(0.0f64, f64::max);
 
         let max_dt_bound = 0.5;
-        let delta_t = if max_alpha > 0.0 {
+        let mut delta_t = if max_alpha > 0.0 {
             (0.25 / max_alpha).min(max_dt_bound)
         } else {
             max_dt_bound
@@ -52,13 +55,38 @@ impl Grid {
         };
 
         for n in 0..iterations {
+
+            let v_max = self.cells
+                .par_iter()
+                .enumerate()
+                .map(|(j, it)| {
+                let row = j % self.height;
+
+                let center_val = it.get_temperature();
+
+                let down_j  = if row == 0 { 0 } else { row - 1 };
+                let down_val  = self.cells[down_j].get_temperature();
+
+                let buoyancy_wind = if down_val > center_val {
+                    (down_val - center_val) * 0.1
+                } else {
+                    0.0
+                };
+
+                (buoyancy_wind + global_wind.y).abs() + global_wind.x
+            }).max_by(|a, b|
+                a.partial_cmp(b).unwrap_or(Equal)
+            ).unwrap_or(0.0);
+
+            delta_t = delta_t.min(1.0 / v_max);
+
             next_field
                 .par_chunks_exact_mut(self.height)
                 .zip(self.cells.par_chunks_exact(self.height))
                 .enumerate()
                 .for_each(|(i, (next_row, source_row))| {
                     for (j, cell) in next_row.iter_mut().enumerate() {
-                        if source_row[j].mask.source {
+                        if source_row[j].mask.source || source_row[j].mask.material == Barrier {
                             continue;
                         }
                         let alpha = source_row[j].mask.alpha;
@@ -109,8 +137,6 @@ impl Grid {
                         let delta_t_advection  = (advection_x + advection_y) * delta_t * cp;
 
                         let dq = delta_t_conduction + delta_t_advection;
-
-                        Cell::newton_cooling(delta_t, center_val - T_AMBIENT);
 
                         let safe_temp = center_val.max(0.0);
 

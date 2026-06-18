@@ -1,3 +1,4 @@
+use crate::float::SafeDiv;
 use crate::sim::cell::therms::{EnthalpyMilestones, ThermalProperties};
 use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::mask::Mask;
@@ -15,9 +16,6 @@ pub struct Cell {
 impl Cell {
     pub fn update_state_from_enthalpy(&mut self) -> f64 {
         let props = self.mask.material.thermal_properties();
-        if !props.volatile {
-
-        }
         let milestones = if !props.volatile {
             EnthalpyMilestones {
                 h_melting:  f64::MAX,
@@ -32,7 +30,7 @@ impl Cell {
 
         if self.enthalpy < milestones.h_melting {
             self.mask.status = Solid;
-            return self.enthalpy / props.specific_heat_solid;
+            return self.enthalpy / props.specific_heat_solid.safe();
         }
 
         if skip_liquid {
@@ -46,7 +44,7 @@ impl Cell {
             } else {
                 self.mask.status = Gas;
                 let excess_energy = self.enthalpy - h_sublimation_end;
-                props.boiling_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_gas.unwrap_or(props.specific_heat_solid))
+                props.boiling_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_gas.unwrap_or(props.specific_heat_solid).safe())
             }
         }
 
@@ -59,7 +57,7 @@ impl Cell {
         if self.enthalpy < milestones.h_boiling {
             self.mask.status = Liquid;
             let excess_energy = self.enthalpy - milestones.h_fused;
-            return props.melting_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_liquid.unwrap_or(1.0));
+            return props.melting_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_liquid.unwrap_or(1.0).safe());
         }
 
         if self.enthalpy < milestones.h_vaporized {
@@ -70,7 +68,7 @@ impl Cell {
 
         self.mask.status = Gas;
         let excess_energy = self.enthalpy - milestones.h_vaporized;
-        props.boiling_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_gas.unwrap_or(1.0))
+        props.boiling_point.unwrap_or(0.0) + (excess_energy / props.specific_heat_gas.unwrap_or(1.0).safe())
     }
 
     pub fn get_temperature(&self) -> f64 {
@@ -87,27 +85,27 @@ impl Cell {
             let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
 
             if self.enthalpy < milestones.h_melting {
-                return self.enthalpy / props.specific_heat_solid
+                return self.enthalpy / props.specific_heat_solid.safe()
             }
             if milestones.h_melting <= self.enthalpy && self.enthalpy < h_sublimation_end {
                 return props.melting_point.unwrap_or(0.0)
             }
             if self.enthalpy >= h_sublimation_end {
-                return props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - h_sublimation_end) / props.specific_heat_gas.unwrap_or(0.0))
+                return props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - h_sublimation_end) / props.specific_heat_gas.unwrap_or(0.0).safe())
             }
         }
 
         match self.mask.status {
-            Solid => self.enthalpy / props.specific_heat_solid,
+            Solid => self.enthalpy / props.specific_heat_solid.safe(),
             Fusing { .. } => props.melting_point.unwrap_or(0.0),
             Liquid => {
                 let c_liquid = props.specific_heat_liquid.unwrap_or(0.0);
-                props.melting_point.unwrap_or(0.0) + ((self.enthalpy - milestones.h_fused) / c_liquid)
+                props.melting_point.unwrap_or(0.0) + ((self.enthalpy - milestones.h_fused) / c_liquid.safe())
             },
             Vaporizing { .. } => props.boiling_point.unwrap_or(0.0),
             Gas => {
                 let c_gas = props.specific_heat_gas.unwrap_or(0.0);
-                props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - milestones.h_vaporized) / c_gas)
+                props.boiling_point.unwrap_or(0.0) + ((self.enthalpy - milestones.h_vaporized) / c_gas.safe())
             }
         }
     }
