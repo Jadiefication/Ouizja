@@ -119,10 +119,12 @@ val buildNative by tasks.registering {
                 }
 
             val builtLibName = "${prefix}Ouizja$suffix"
-            val targetDir = if (target.isNotEmpty())
-                "../${simulationDir.path}/target/$target/release"
-            else
-                "../${simulationDir.path}/target/release"
+            val targetDir =
+                if (target.isNotEmpty()) {
+                    "../${simulationDir.path}/target/$target/release"
+                } else {
+                    "../${simulationDir.path}/target/release"
+                }
             val sourceFile = file("$targetDir/$builtLibName")
 
             if (sourceFile.exists()) {

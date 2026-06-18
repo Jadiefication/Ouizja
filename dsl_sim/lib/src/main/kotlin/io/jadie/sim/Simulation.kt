@@ -5,7 +5,6 @@ import io.jadie.SimState
 import org.spongepowered.noise.module.NoiseModule
 
 class Simulation {
-
     internal var length = 256
     internal var height = 256
     internal var materialMask = mutableListOf<Material>()
@@ -15,7 +14,10 @@ class Simulation {
     internal val winds = mutableListOf<Double>()
     var ambient: Double = 293.15
 
-    fun grid(length: Int, height: Int) {
+    fun grid(
+        length: Int,
+        height: Int,
+    ) {
         this.length = length
         this.height = height
     }
@@ -29,18 +31,19 @@ class Simulation {
         fromX: Int,
         toX: Int,
         fromY: Int,
-        toY: Int
+        toY: Int,
     ) {
         if (materialMask.size != length * height) {
-            materialMask = MutableList(length * height) { index ->
-                val x = index / height
-                val y = index % height
-                if (x in fromX..toX && y in fromY..toY) {
-                    material
-                } else {
-                    Material.BARRIER
+            materialMask =
+                MutableList(length * height) { index ->
+                    val x = index / height
+                    val y = index % height
+                    if (x in fromX..toX && y in fromY..toY) {
+                        material
+                    } else {
+                        Material.BARRIER
+                    }
                 }
-            }
         } else {
             for (index in materialMask.indices) {
                 val x = index / height
@@ -59,18 +62,19 @@ class Simulation {
     fun temp(
         temp: Double,
         x: Int,
-        y: Int
+        y: Int,
     ) {
         if (temps.size != length * height) {
-            temps = MutableList(length * height) { index ->
-                val xIndex = index / height
-                val yIndex = index % height
-                if (xIndex == x && yIndex == y) {
-                    temp
-                } else {
-                    0.0
+            temps =
+                MutableList(length * height) { index ->
+                    val xIndex = index / height
+                    val yIndex = index % height
+                    if (xIndex == x && yIndex == y) {
+                        temp
+                    } else {
+                        0.0
+                    }
                 }
-            }
         } else {
             val index = x * height + y
             if (index in temps.indices) {
@@ -84,18 +88,19 @@ class Simulation {
         fromX: Int,
         toX: Int,
         fromY: Int,
-        toY: Int
+        toY: Int,
     ) {
         if (temps.size != length * height) {
-            temps = MutableList(length * height) { index ->
-                val x = index / height
-                val y = index % height
-                if (x in fromX..toX && y in fromY..toY) {
-                    temp
-                } else {
-                    0.0
+            temps =
+                MutableList(length * height) { index ->
+                    val x = index / height
+                    val y = index % height
+                    if (x in fromX..toX && y in fromY..toY) {
+                        temp
+                    } else {
+                        0.0
+                    }
                 }
-            }
         } else {
             for (index in temps.indices) {
                 val x = index / height
@@ -111,21 +116,22 @@ class Simulation {
         fromX: Int,
         toX: Int,
         fromY: Int,
-        toY: Int
+        toY: Int,
     ) {
         material(Material.BARRIER, fromX, toX, fromY, toY)
     }
 
     fun source(
         x: Int,
-        y: Int
+        y: Int,
     ) {
         if (sourceMask.size != length * height) {
-            sourceMask = MutableList(length * height) { index ->
-                val xIndex = index / height
-                val yIndex = index % height
-                xIndex == x && yIndex == y
-            }
+            sourceMask =
+                MutableList(length * height) { index ->
+                    val xIndex = index / height
+                    val yIndex = index % height
+                    xIndex == x && yIndex == y
+                }
         } else {
             val index = x * height + y
             if (index in sourceMask.indices) {
@@ -136,7 +142,7 @@ class Simulation {
 
     fun wind(
         force: Pair<Double, Double>,
-        temp: Double = 0.0
+        temp: Double = 0.0,
     ) {
         winds.addAll(listOf(force.first, force.second, temp))
     }
@@ -145,27 +151,33 @@ class Simulation {
         x: Int,
         y: Int,
         kappa: Double,
-        index: Int
+        index: Int,
     ) {
         quantum.addAll(listOf(x.toDouble(), y.toDouble(), kappa, index.toDouble()))
     }
 
-    fun circle(centerX: Int, centerY: Int, radius: Int, source: Boolean) {
+    fun circle(
+        centerX: Int,
+        centerY: Int,
+        radius: Int,
+        source: Boolean,
+    ) {
         val r_2 = radius * radius
         if (sourceMask.size != length * height) {
-            sourceMask = MutableList(length * height) { index ->
-                val xIndex = index / height
-                val yIndex = index % height
+            sourceMask =
+                MutableList(length * height) { index ->
+                    val xIndex = index / height
+                    val yIndex = index % height
 
-                val d_x = (xIndex + 0.5) - centerX
-                val d_y = (yIndex + 0.5) - centerY
+                    val d_x = (xIndex + 0.5) - centerX
+                    val d_y = (yIndex + 0.5) - centerY
 
-                if (d_x * d_x + d_y * d_y <= r_2) {
-                    source
-                } else {
-                    !source
+                    if (d_x * d_x + d_y * d_y <= r_2) {
+                        source
+                    } else {
+                        !source
+                    }
                 }
-            }
         } else {
             for (index in sourceMask.indices) {
                 val xIndex = index / height
@@ -180,22 +192,28 @@ class Simulation {
             }
         }
 
-        fun circle(centerX: Int, centerY: Int, radius: Int, temp: Double) {
+        fun circle(
+            centerX: Int,
+            centerY: Int,
+            radius: Int,
+            temp: Double,
+        ) {
             val r_2 = radius * radius
             if (temps.size != length * height) {
-                temps = MutableList(length * height) { index ->
-                    val xIndex = index / height
-                    val yIndex = index % height
+                temps =
+                    MutableList(length * height) { index ->
+                        val xIndex = index / height
+                        val yIndex = index % height
 
-                    val d_x = (xIndex + 0.5) - centerX
-                    val d_y = (yIndex + 0.5) - centerY
+                        val d_x = (xIndex + 0.5) - centerX
+                        val d_y = (yIndex + 0.5) - centerY
 
-                    if (d_x * d_x + d_y * d_y <= r_2) {
-                        temp
-                    } else {
-                        0.0
+                        if (d_x * d_x + d_y * d_y <= r_2) {
+                            temp
+                        } else {
+                            0.0
+                        }
                     }
-                }
             } else {
                 for (index in temps.indices) {
                     val xIndex = index / height
@@ -212,22 +230,28 @@ class Simulation {
         }
     }
 
-    fun circle(centerX: Int, centerY: Int, radius: Int, material: Material) {
+    fun circle(
+        centerX: Int,
+        centerY: Int,
+        radius: Int,
+        material: Material,
+    ) {
         val r_2 = radius * radius
         if (materialMask.size != length * height) {
-            materialMask = MutableList(length * height) { index ->
-                val xIndex = index / height
-                val yIndex = index % height
+            materialMask =
+                MutableList(length * height) { index ->
+                    val xIndex = index / height
+                    val yIndex = index % height
 
-                val d_x = (xIndex + 0.5) - centerX
-                val d_y = (yIndex + 0.5) - centerY
+                    val d_x = (xIndex + 0.5) - centerX
+                    val d_y = (yIndex + 0.5) - centerY
 
-                if (d_x * d_x + d_y * d_y <= r_2) {
-                    material
-                } else {
-                    Material.BARRIER
+                    if (d_x * d_x + d_y * d_y <= r_2) {
+                        material
+                    } else {
+                        Material.BARRIER
+                    }
                 }
-            }
         } else {
             for (index in materialMask.indices) {
                 val xIndex = index / height
@@ -243,30 +267,32 @@ class Simulation {
         }
     }
 
-    fun<T : NoiseModule> noise(noise: T, scale: Double = 1.0, apply: Simulation.(Double, Int, Int) -> Unit) {
+    fun <T : NoiseModule> noise(
+        noise: T,
+        scale: Double = 1.0,
+        apply: Simulation.(Double, Int, Int) -> Unit,
+    ) {
         for (x in 0 until length) {
             for (y in 0 until height) {
-
-                val nAverage = (
+                val nAverage =
+                    (
                         noise.get((x - 1) * scale, y * scale, 0.0) +
-                                noise.get((x + 1) * scale, y * scale, 0.0) +
-                                noise.get(x * scale, (y - 1) * scale, 0.0) +
-                                noise.get(x * scale, (y + 1) * scale, 0.0) +
-                                noise.get(x * scale, y * scale, 0.0)
-                        ) / 5.0
+                            noise.get((x + 1) * scale, y * scale, 0.0) +
+                            noise.get(x * scale, (y - 1) * scale, 0.0) +
+                            noise.get(x * scale, (y + 1) * scale, 0.0) +
+                            noise.get(x * scale, y * scale, 0.0)
+                    ) / 5.0
 
                 apply(nAverage, x, y)
             }
         }
     }
-    
+
     fun ambient(new: Double) {
         ambient = new
     }
 
-    fun size(): Int {
-        return length * height
-    }
+    fun size(): Int = length * height
 }
 
 data class BuiltSim(
@@ -277,45 +303,51 @@ data class BuiltSim(
     internal var quantum: DoubleArray,
     internal val winds: DoubleArray,
     internal var temps: DoubleArray,
-    internal val ambient: Double
+    internal val ambient: Double,
 ) {
     fun run(iterations: Long): SimState {
-        val sim = OuizjaLoader.createSim(
-            temps,
-            sourceMask,
-            materialMask,
-            quantum,
-            winds,
-            length,
-            height,
-            ambient
-        )
+        val sim =
+            OuizjaLoader.createSim(
+                temps,
+                sourceMask,
+                materialMask,
+                quantum,
+                winds,
+                length,
+                height,
+                ambient,
+            )
 
         val state = OuizjaLoader.runSim(iterations, sim, length, height)
         OuizjaLoader.freeSim(sim)
         return state
     }
 
-    fun run(iterations: Long, predicate: (SimState) -> Boolean) {
+    fun run(
+        iterations: Long,
+        predicate: (SimState) -> Boolean,
+    ) {
         for (i in 0..iterations) {
             val state = run(1)
 
             if (predicate(state)) {
                 break
             } else {
-                val newField = buildList {
-                    state.field.forEach { arr ->
-                        arr.forEach { value ->
-                            this.add(value)
+                val newField =
+                    buildList {
+                        state.field.forEach { arr ->
+                            arr.forEach { value ->
+                                this.add(value)
+                            }
                         }
-                    }
-                }.toDoubleArray()
+                    }.toDoubleArray()
 
-                val newQuantum = buildList {
-                    state.quantum.forEach { value ->
-                        this.addAll(listOf(value.first.toDouble(), value.second.toDouble(), value.third))
-                    }
-                }.toDoubleArray()
+                val newQuantum =
+                    buildList {
+                        state.quantum.forEach { value ->
+                            this.addAll(listOf(value.first.toDouble(), value.second.toDouble(), value.third))
+                        }
+                    }.toDoubleArray()
 
                 this.temps = newField
                 this.quantum = newQuantum
@@ -358,81 +390,97 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
     val targetSize = simulation.size()
     if (simulation.sourceMask.size != targetSize) {
         val oldMask = simulation.sourceMask
-        simulation.sourceMask = MutableList(targetSize) { index ->
-            if (index < oldMask.size) {
-                oldMask[index]
-            } else {
-                false
+        simulation.sourceMask =
+            MutableList(targetSize) { index ->
+                if (index < oldMask.size) {
+                    oldMask[index]
+                } else {
+                    false
+                }
             }
-        }
     }
     if (simulation.materialMask.size != targetSize) {
         val oldMask = simulation.materialMask
-        simulation.materialMask = MutableList(targetSize) { index ->
-            if (index < oldMask.size) {
-                oldMask[index]
-            } else {
-                Material.BARRIER
+        simulation.materialMask =
+            MutableList(targetSize) { index ->
+                if (index < oldMask.size) {
+                    oldMask[index]
+                } else {
+                    Material.BARRIER
+                }
             }
-        }
     }
     if (simulation.temps.size != targetSize) {
         val oldMask = simulation.temps
-        simulation.temps = MutableList(targetSize) { index ->
-            if (index < oldMask.size) {
-                oldMask[index]
-            } else {
-                0.0
+        simulation.temps =
+            MutableList(targetSize) { index ->
+                if (index < oldMask.size) {
+                    oldMask[index]
+                } else {
+                    0.0
+                }
             }
-        }
     }
-    val built = BuiltSim(
-        simulation.height,
-        simulation.length,
-        simulation.sourceMask.toBooleanArray(),
-        simulation.materialMask.map { it.id }.toIntArray(),
-        simulation.quantum.toDoubleArray(),
-        simulation.winds.toDoubleArray(),
-        simulation.temps.toDoubleArray(),
-        simulation.ambient
-    )
+    val built =
+        BuiltSim(
+            simulation.height,
+            simulation.length,
+            simulation.sourceMask.toBooleanArray(),
+            simulation.materialMask.map { it.id }.toIntArray(),
+            simulation.quantum.toDoubleArray(),
+            simulation.winds.toDoubleArray(),
+            simulation.temps.toDoubleArray(),
+            simulation.ambient,
+        )
     return built
 }
 
 val BuiltSim.nonSolidMask: BooleanArray
-    get() = materialMask.map { id ->
-        val material = Material.entries.find { it.id == id } ?: Material.BARRIER
-        material.type != Type.SOLID
-    }.toBooleanArray()
+    get() =
+        materialMask
+            .map { id ->
+                val material = Material.entries.find { it.id == id } ?: Material.BARRIER
+                material.type != Type.SOLID
+            }.toBooleanArray()
 
-fun BuiltSim.toMaterialArray(): Array<Material> {
-    return materialMask.map { id -> Material.entries.find { it.id == id } ?: Material.BARRIER }.toTypedArray()
-}
+fun BuiltSim.toMaterialArray(): Array<Material> =
+    materialMask
+        .map { id ->
+            Material.entries.find {
+                it.id == id
+            } ?: Material.BARRIER
+        }.toTypedArray()
 
-fun transform(oldState: BuiltSim, newState: SimState): BuiltSim {
-    val newField = buildList {
-        newState.field.forEach { arr ->
-            arr.forEach { value ->
-                this.add(value)
+fun transform(
+    oldState: BuiltSim,
+    newState: SimState,
+): BuiltSim {
+    val newField =
+        buildList {
+            newState.field.forEach { arr ->
+                arr.forEach { value ->
+                    this.add(value)
+                }
             }
-        }
-    }.toDoubleArray()
+        }.toDoubleArray()
 
-    val newQuantum = buildList {
-        newState.quantum.forEach { value ->
-            this.addAll(listOf(value.first.toDouble(), value.second.toDouble(), value.third))
-        }
-    }.toDoubleArray()
+    val newQuantum =
+        buildList {
+            newState.quantum.forEach { value ->
+                this.addAll(listOf(value.first.toDouble(), value.second.toDouble(), value.third))
+            }
+        }.toDoubleArray()
 
-    val newSim = BuiltSim(
-        oldState.height,
-        oldState.length,
-        oldState.sourceMask,
-        oldState.materialMask,
-        newQuantum,
-        oldState.winds,
-        newField,
-        oldState.ambient
-    )
+    val newSim =
+        BuiltSim(
+            oldState.height,
+            oldState.length,
+            oldState.sourceMask,
+            oldState.materialMask,
+            newQuantum,
+            oldState.winds,
+            newField,
+            oldState.ambient,
+        )
     return newSim
 }

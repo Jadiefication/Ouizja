@@ -61,7 +61,7 @@ class OuizjaLoader {
             winds: DoubleArray,
             length: Int,
             height: Int,
-            tAmbient: Double
+            tAmbient: Double,
         ): Long
 
         @JvmStatic
@@ -69,12 +69,10 @@ class OuizjaLoader {
             iterations: Long,
             pointer: Long,
             length: Int,
-            height: Int
+            height: Int,
         ): SimState
 
         @JvmStatic
-        external fun freeSim(
-            pointer: Long
-        )
+        external fun freeSim(pointer: Long)
     }
 }

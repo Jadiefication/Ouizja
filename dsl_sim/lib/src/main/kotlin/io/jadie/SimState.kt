@@ -6,7 +6,7 @@ data class SimState(
     val field: Array<DoubleArray>,
     // [x, y, gamma]
     val quantum: Array<Triple<Int, Int, Double>>,
-    val states: Array<Array<Type>>
+    val states: Array<Array<Type>>,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

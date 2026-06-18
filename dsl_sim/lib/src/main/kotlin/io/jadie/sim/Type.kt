@@ -15,16 +15,17 @@ enum class Type {
     },
     GAS {
         override val id: Int = 2
-    };
+    }, ;
 
     abstract val id: Int
 
     companion object {
         private val maxId = entries.toTypedArray().maxOf { it.id }
 
-        private val lookupTable = Array(maxId + 1) { index ->
-            entries.find { it.id == index } ?: SOLID
-        }
+        private val lookupTable =
+            Array(maxId + 1) { index ->
+                entries.find { it.id == index } ?: SOLID
+            }
 
         @JvmStatic
         fun fromId(id: Int): Type {
@@ -32,5 +33,4 @@ enum class Type {
             return lookupTable[id]
         }
     }
-
 }
