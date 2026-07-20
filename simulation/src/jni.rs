@@ -11,6 +11,7 @@ use jni::errors::{Error, ThrowRuntimeExAndDefault};
 use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObjectArray};
 use jni::sys::{jdouble, jint, jlong};
 use jni::{EnvUnowned, JValue, jni_sig, jni_str};
+use crate::float::ThermUtils;
 
 /// JNI entry point to create a new simulation instance.
 /// Returns a raw pointer to the `Grid` object as a `jlong`.
@@ -71,53 +72,60 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 (None, &[][..])
             };
 
-            let mut cells = temperatures
+            let alpha_mask = material_mask.iter().map(|&id| {
+                Material::find_by_id(id as u8).thermal_properties().diffusivity
+            }).collect();
+
+            let cells = source_mask
                 .into_iter()
-                .zip(source_mask)
                 .zip(material_mask)
-                .map(|((temp, source), id)| {
+                .map(|(source, id)| {
                     let material = Material::find_by_id(id as u8);
                     let status = if material == Air {
-                        Gas
+                        2
                     } else if material == Water {
-                        Liquid
+                        1
                     } else {
-                        Solid
+                        0
                     };
-                    let props = material.thermal_properties();
-                    let mask = Mask {
-                        status,
-                        source,
-                        alpha: props.diffusivity,
-                        material,
-                        quantum: None,
-                    };
-                    let enthalpy = Cell::calculate_forward_enthalpy(temp, &props);
-                    Cell { mask, enthalpy }
-                })
-                .collect::<Vec<Cell>>();
 
+                    let mut base: u16 = if source { 0x1 } else { 0x0 };
+
+                    base |= status << 1;
+                    base |= (id as u16) << 4;
+
+                    base
+                })
+                .collect::<Vec<u16>>();
+
+            let mut quantum_indices: Vec<isize> = vec![-1; (length * height) as usize];
+            let mut quantum: Vec<Quantum> = vec![];
             if let Some(chunks) = q_chunks {
                 chunks.iter().for_each(|it| {
                     let x = it[0] as i32;
                     let y = it[1] as i32;
                     if x >= 0 && x < length && y >= 0 && y < height {
                         let i = (x * height + y) as usize;
-                        cells[i].mask.quantum = Some(Quantum {
+                        quantum.push(Quantum {
                             gamma: 1.0,
                             kappa: it[2],
                             index: it[3] as i32,
-                        })
+                        });
+                        quantum_indices[i] = quantum.len() as isize;
                     }
                 });
             }
 
             let grid = Grid::new(
+                temperatures,
+                alpha_mask,
+                quantum_indices,
+                quantum,
                 cells,
                 length as usize,
                 height as usize,
                 actual_winds,
-                tAmbient,
+                tAmbient
             );
             let g_box = Box::new(grid);
 
@@ -164,10 +172,16 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                 JObjectArray::<JObject>::null(),
             )?;
 
-            for (i, row_slice) in grid.cells.chunks_exact(height as usize).enumerate() {
+            for (((i, row_slice)), metadata_slice) in grid.enthalpies.chunks_exact(height as usize).enumerate()
+                .zip(grid.metadata.chunks_exact(height as usize)) {
                 let temp_slice: Vec<f64> = row_slice
                     .iter()
-                    .map(|cell| cell.get_temperature())
+                    .zip(metadata_slice)
+                    .map(|(cell, metadata)| {
+                        let status = Status::find_by_id(((metadata >> 1) & 0x07) as u8);
+                        let material = Material::find_by_id(((metadata >> 4) & 0x1F) as u8);
+                        cell.get_temp(material, &status)
+                    })
                     .collect();
                 let temp_arr = JDoubleArray::new(env, height as usize)?;
                 temp_arr.set_region(env, 0, &temp_slice)?;
@@ -175,8 +189,9 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
 
                 let temp_arr = JObjectArray::<JObject>::new(env, height as usize, JObject::null())?;
 
-                for (j, it) in row_slice.iter().enumerate() {
-                    let status = it.mask.status;
+                for (j, metadata) in metadata_slice.iter().enumerate() {
+                    let status = Status::find_by_id(((metadata >> 1) & 0x07) as u8);
+                    let material = Material::find_by_id(((metadata >> 4) & 0x1F) as u8);
                     let status_u8 = match status {
                         Solid => 0,
                         Liquid => 1,
@@ -201,24 +216,14 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                 types.set_element(env, i, temp_arr)?;
             }
 
-            let q_cells: Vec<Option<Cell>> = grid
-                .cells
-                .iter()
-                .map(|&it| {
-                    if it.mask.quantum.is_some() {
-                        Some(it)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            let q_length = q_cells.iter().filter(|it| it.is_some()).count();
+            let q_length = grid.quantum_indices.iter().filter(|&&it| it != -1).count();
             let q_states = JObjectArray::<JObject>::new(env, q_length, JObject::null())?;
             let mut write_idx = 0;
 
-            for (i, cell) in q_cells.iter().enumerate() {
-                if let Some(q_cell) = cell {
+            for (i, &cell) in grid.quantum_indices.iter().enumerate() {
+                if cell != -1 {
+                    let q_cell = grid.quantum[cell as usize];
+
                     let t_class = env.find_class(jni_str!("kotlin/Triple"))?;
                     let i_class = env.find_class(jni_str!("java/lang/Integer"))?;
                     let d_class = env.find_class(jni_str!("java/lang/Double"))?;
@@ -236,7 +241,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                     let gamma = env.new_object(
                         &d_class,
                         jni_sig!("(D)V"),
-                        &[JValue::Double(q_cell.mask.quantum.unwrap().gamma)],
+                        &[JValue::Double(q_cell.gamma)],
                     )?;
 
                     let obj = env.new_object(
