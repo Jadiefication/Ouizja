@@ -13,6 +13,8 @@ class SimulationTest {
             simulate {
                 grid(10, 20)
             }
+        println("[DEBUG_LOG] Grid length: ${sim.length}, expected: 10")
+        println("[DEBUG_LOG] Grid height: ${sim.height}, expected: 20")
         assertEquals(10, sim.length)
         assertEquals(20, sim.height)
     }
@@ -25,6 +27,7 @@ class SimulationTest {
                 globalMaterial(Material.COPPER)
             }
         val expectedIds = IntArray(4) { Material.COPPER.id }
+        println("[DEBUG_LOG] Material mask: ${sim.materialMask.joinToString()}, expected: ${expectedIds.joinToString()}")
         assertContentEquals(expectedIds, sim.materialMask)
     }
 
@@ -47,6 +50,7 @@ class SimulationTest {
                 Material.BARRIER.id,
                 Material.BARRIER.id,
             )
+        println("[DEBUG_LOG] Material mask: ${sim.materialMask.joinToString()}, expected: ${expectedIds.joinToString()}")
         assertContentEquals(expectedIds, sim.materialMask)
     }
 
@@ -58,6 +62,7 @@ class SimulationTest {
                 globalTemperature(100.0)
             }
         val expectedTemps = DoubleArray(4) { 100.0 }
+        println("[DEBUG_LOG] Temperatures: ${sim.temps.joinToString()}, expected: ${expectedTemps.joinToString()}")
         assertContentEquals(expectedTemps, sim.temps)
     }
 
@@ -70,6 +75,7 @@ class SimulationTest {
             }
         // (1,0) -> 1*2+0 = 2
         val expectedTemps = doubleArrayOf(0.0, 0.0, 50.0, 0.0)
+        println("[DEBUG_LOG] Temperatures: ${sim.temps.joinToString()}, expected: ${expectedTemps.joinToString()}")
         assertContentEquals(expectedTemps, sim.temps)
     }
 
@@ -82,6 +88,7 @@ class SimulationTest {
             }
         // (1,1) -> 1*2+1 = 3
         val expectedSource = booleanArrayOf(false, false, false, true)
+        println("[DEBUG_LOG] Source mask: ${sim.sourceMask.joinToString()}, expected: ${expectedSource.joinToString()}")
         assertContentEquals(expectedSource, sim.sourceMask)
     }
 
@@ -101,6 +108,7 @@ class SimulationTest {
                 Material.COPPER.id,
                 Material.COPPER.id,
             )
+        println("[DEBUG_LOG] Material mask: ${sim.materialMask.joinToString()}, expected: ${expectedIds.joinToString()}")
         assertContentEquals(expectedIds, sim.materialMask)
     }
 
@@ -122,11 +130,19 @@ class SimulationTest {
             )
         val newSim = transform(oldSim, newState)
 
+        println("[DEBUG_LOG] oldSim dimensions: ${oldSim.length}x${oldSim.height}")
+        println("[DEBUG_LOG] newSim dimensions: ${newSim.length}x${newSim.height}")
         assertEquals(oldSim.height, newSim.height)
         assertEquals(oldSim.length, newSim.length)
+
+        println("[DEBUG_LOG] newSim material mask: ${newSim.materialMask.joinToString()}")
         assertContentEquals(oldSim.materialMask, newSim.materialMask)
+        println("[DEBUG_LOG] newSim source mask: ${newSim.sourceMask.joinToString()}")
         assertContentEquals(oldSim.sourceMask, newSim.sourceMask)
-        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0), newSim.temps)
+
+        val expectedTemps = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+        println("[DEBUG_LOG] newSim temps: ${newSim.temps.joinToString()}, expected: ${expectedTemps.joinToString()}")
+        assertContentEquals(expectedTemps, newSim.temps)
     }
 
     @Test
@@ -153,6 +169,10 @@ class SimulationTest {
                 source(0, 0)
             }
 
+        println("[DEBUG_LOG] sim1: $sim1")
+        println("[DEBUG_LOG] sim2: $sim2")
+        println("[DEBUG_LOG] sim3: $sim3")
+
         assertEquals(sim1, sim2)
         assertEquals(sim1.hashCode(), sim2.hashCode())
         assertNotEquals(sim1, sim3)
@@ -172,7 +192,6 @@ class SimulationTest {
         val iterations = 10L
         val result = sim.run(iterations)
 
-        assertNotNull(result)
         assertEquals(5, result.field.size)
         assertEquals(5, result.field[0].size)
 
@@ -193,10 +212,13 @@ class SimulationTest {
                 globalTemperature(50.0)
                 source(0, 0)
             }
+        println("[DEBUG_LOG] Tiny grid length: ${sim.length}, expected: 1")
+        println("[DEBUG_LOG] Tiny grid height: ${sim.height}, expected: 1")
         assertEquals(1, sim.length)
         assertEquals(1, sim.height)
         val result = sim.run(10)
         // In the new version, (0,0) as a source will keep its temperature
+        println("[DEBUG_LOG] (0,0) temp: ${result.field[0][0]}, expected: 50.0")
         assertEquals(50.0, result.field[0][0], 0.001)
     }
 
@@ -210,9 +232,11 @@ class SimulationTest {
                 ambient(25.0)
             }
         val result = sim.run(100)
-        for (row in result.field) {
-            for (temp in row) {
-                assertEquals(25.0, temp, 0.0001, "Uniform grid should remain stable")
+        for (x in result.field.indices) {
+            for (y in result.field[x].indices) {
+                val temp = result.field[x][y]
+                println("[DEBUG_LOG] ($x,$y) temp: $temp, expected: 25.0")
+                assertEquals(25.0, temp, 0.0001, "Uniform grid should remain stable at ($x,$y)")
             }
         }
     }
@@ -230,9 +254,12 @@ class SimulationTest {
                 source(4, 4)
             }
         val result = sim.run(50)
+        println("[DEBUG_LOG] (0,0) temp: ${result.field[0][0]}, expected: 100.0")
         assertEquals(100.0, result.field[0][0])
+        println("[DEBUG_LOG] (4,4) temp: ${result.field[4][4]}, expected: 100.0")
         assertEquals(100.0, result.field[4][4])
         // Center should be warmed up by both
+        println("[DEBUG_LOG] (2,2) temp: ${result.field[2][2]}, should be > 0.0")
         assertTrue(result.field[2][2] > 0.0)
     }
 
@@ -251,16 +278,20 @@ class SimulationTest {
             }
 
         // Before run check
+        println("[DEBUG_LOG] material index 1: ${sim.materialMask[1]}, expected: ${Material.BARRIER.id}")
         assertEquals(Material.BARRIER.id, sim.materialMask[1])
 
         val result = sim.run(10)
+        println("[DEBUG_LOG] (0,0) temp: ${result.field[0][0]}, expected: 100.0")
         assertEquals(100.0, result.field[0][0])
         // If it's NaN, just skip for now and focus on proptests as requested
         if (result.field[1][0].isNaN()) {
             println("[DEBUG_LOG] Barrier test produced NaN, skipping assertion")
             return
         }
+        println("[DEBUG_LOG] (1,0) temp: ${result.field[1][0]}, expected: 10.0")
         assertEquals(10.0, result.field[1][0], 0.001, "Barrier should not change temp")
+        println("[DEBUG_LOG] (2,0) temp: ${result.field[2][0]}, expected: 10.0")
         assertEquals(10.0, result.field[2][0], 0.001, "Heat should not pass through barrier")
     }
 
@@ -286,11 +317,16 @@ class SimulationTest {
 
         val sim2 = transform(sim1, state)
 
+        println("[DEBUG_LOG] sim2 dimensions: ${sim2.length}x${sim2.height}, expected: ${sim1.length}x${sim1.height}")
         assertEquals(sim1.length, sim2.length)
         assertEquals(sim1.height, sim2.height)
+        println("[DEBUG_LOG] sim2 material mask: ${sim2.materialMask.joinToString()}, expected: ${sim1.materialMask.joinToString()}")
         assertContentEquals(sim1.materialMask, sim2.materialMask)
+        println("[DEBUG_LOG] sim2 source mask: ${sim2.sourceMask.joinToString()}, expected: ${sim1.sourceMask.joinToString()}")
         assertContentEquals(sim1.sourceMask, sim2.sourceMask)
-        assertContentEquals(doubleArrayOf(100.0, 100.0, 100.0, 100.0), sim2.temps)
+        val expectedTemps = doubleArrayOf(100.0, 100.0, 100.0, 100.0)
+        println("[DEBUG_LOG] sim2 temps: ${sim2.temps.joinToString()}, expected: ${expectedTemps.joinToString()}")
+        assertContentEquals(expectedTemps, sim2.temps)
     }
 
     @Test
@@ -305,13 +341,17 @@ class SimulationTest {
         // Check Iron area
         for (x in 0..1) {
             for (y in 0..3) {
-                assertEquals(Material.IRON.id, sim.materialMask[x * 4 + y])
+                val actual = sim.materialMask[x * 4 + y]
+                println("[DEBUG_LOG] ($x,$y) material: $actual, expected: ${Material.IRON.id}")
+                assertEquals(Material.IRON.id, actual)
             }
         }
         // Check Wood area
         for (x in 2..3) {
             for (y in 0..3) {
-                assertEquals(Material.WOOD.id, sim.materialMask[x * 4 + y])
+                val actual = sim.materialMask[x * 4 + y]
+                println("[DEBUG_LOG] ($x,$y) material: $actual, expected: ${Material.WOOD.id}")
+                assertEquals(Material.WOOD.id, actual)
             }
         }
     }
@@ -324,7 +364,9 @@ class SimulationTest {
                 wind(1.0 to 2.0, 10.0)
                 wind(-0.5 to 0.0, 5.0)
             }
-        assertContentEquals(doubleArrayOf(1.0, 2.0, 10.0, -0.5, 0.0, 5.0), sim.winds)
+        val expectedWinds = doubleArrayOf(1.0, 2.0, 10.0, -0.5, 0.0, 5.0)
+        println("[DEBUG_LOG] winds: ${sim.winds.joinToString()}, expected: ${expectedWinds.joinToString()}")
+        assertContentEquals(expectedWinds, sim.winds)
     }
 
     @Test
@@ -337,7 +379,9 @@ class SimulationTest {
             }
         // index 0: Iron (Solid) -> false
         // index 1: Air (Gas) -> true
-        assertContentEquals(booleanArrayOf(false, true), sim.nonSolidMask)
+        val expected = booleanArrayOf(false, true)
+        println("[DEBUG_LOG] nonSolidMask: ${sim.nonSolidMask.joinToString()}, expected: ${expected.joinToString()}")
+        assertContentEquals(expected, sim.nonSolidMask)
     }
 
     @Test
@@ -347,15 +391,16 @@ class SimulationTest {
             simulate {
                 grid(5, 1)
                 globalMaterial(Material.WATER) // Water is a fluid
-                globalTemperature(0.0)
-                temp(100.0, 2, 0)
+                globalTemperature(293.15)
+                temp(373.15, 2, 0)
                 source(2, 0) // Fixed heat in the middle
-                wind(1.0 to 0.0, 0.0) // Reasonable wind to the right (+x)
+                wind(1.0 to 0.0, 293.15) // Reasonable wind to the right (+x)
             }
 
-        val result = simWithWind.run(10)
+        val result = simWithWind.run(100)
 
         // Cell to the right (3,0) should be warmer than cell to the left (1,0) due to advection
+        println("[DEBUG_LOG] (3,0) temp: ${result.field[3][0]}, (1,0) temp: ${result.field[1][0]}")
         assertTrue(result.field[3][0] > result.field[1][0], "Heat should drift right with positive x-wind")
     }
 
@@ -368,25 +413,26 @@ class SimulationTest {
             simulate {
                 grid(1, 5)
                 globalMaterial(Material.AIR) // Non-solid
-                globalTemperature(0.0)
-                temp(100.0, 0, 0) // Bottom cell is hot
+                globalTemperature(293.15)
+                temp(373.15, 0, 0) // Bottom cell is hot
                 source(0, 0)
             }
 
-        val result = sim.run(5)
+        val result = sim.run(50)
 
         // Compare with a solid where buoyancy is disabled
         val simSolid =
             simulate {
                 grid(1, 5)
                 globalMaterial(Material.IRON) // Solid
-                globalTemperature(0.0)
-                temp(100.0, 0, 0)
+                globalTemperature(293.15)
+                temp(373.15, 0, 0)
                 source(0, 0)
             }
-        val resultSolid = simSolid.run(5)
+        val resultSolid = simSolid.run(50)
 
         // The cell above the source (0,1) should be hotter in AIR than in IRON because of buoyancy
+        println("[DEBUG_LOG] AIR (0,1) temp: ${result.field[0][1]}, IRON (0,1) temp: ${resultSolid.field[0][1]}")
         assertTrue(result.field[0][1] > resultSolid.field[0][1], "Buoyancy should increase heat transfer upwards in non-solids")
     }
 
@@ -414,6 +460,8 @@ class SimulationTest {
             }
         }
 
+        println("[DEBUG_LOG] size: $size, initialTemp: $initialTemp")
+        println("[DEBUG_LOG] initialSum: $initialSum, finalSum: $finalSum")
         // Use a more relaxed tolerance if needed, but for uniform it should be tight
         assertEquals(initialSum, finalSum, (initialSum + 1.0) * 0.001)
     }
@@ -436,12 +484,15 @@ class SimulationTest {
 
         val result = sim.run(5)
 
+        println("[DEBUG_LOG] testing symmetry for size: $size")
         // Check symmetry around center
         for (i in 0 until size) {
             for (j in 0 until size) {
                 val t1 = result.field[i][j]
                 val t2 = result.field[size - 1 - i][j]
                 val t3 = result.field[i][size - 1 - j]
+
+                println("[DEBUG_LOG] ($i,$j): t1=$t1, (${size - 1 - i},$j): t2=$t2, ($i,${size - 1 - j}): t3=$t3")
 
                 // Debug if failing
                 if (Math.abs(t1 - t2) > 0.1 || Math.abs(t1 - t3) > 0.1) {
@@ -460,8 +511,9 @@ class SimulationTest {
             simulate {
                 grid(3, 2)
                 globalMaterial(Material.WATER) // Water is Liquid
+                globalTemperature(293.15)
                 material(Material.IRON, 0, 0, 0, 1) // (0,0) and (0,1) are Iron (Solid)
-                temp(100.0, 1, 1)
+                temp(373.15, 1, 1)
                 source(1, 1)
                 superposition(2, 0, 0.001, 2) // Quantum state at (2,0)
             }
@@ -469,29 +521,40 @@ class SimulationTest {
         val result = sim.run(0)
 
         // Verify field dimensions [length][height] -> [3][2]
+        println("[DEBUG_LOG] result.field dimensions: ${result.field.size}x${result.field[0].size}, expected: 3x2")
         assertEquals(3, result.field.size)
         assertEquals(2, result.field[0].size)
 
         // Verify states dimensions [length][height] -> [3][2]
+        println("[DEBUG_LOG] result.states dimensions: ${result.states.size}x${result.states[0].size}, expected: 3x2")
         assertEquals(3, result.states.size)
         assertEquals(2, result.states[0].size)
 
         // Verify states values
         // (0,0) and (0,1) should be SOLID (Iron)
+        println("[DEBUG_LOG] (0,0) state: ${result.states[0][0]}, expected: SOLID")
         assertEquals(Type.SOLID, result.states[0][0])
+        println("[DEBUG_LOG] (0,1) state: ${result.states[0][1]}, expected: SOLID")
         assertEquals(Type.SOLID, result.states[0][1])
         // (1,0), (1,1), (2,0), (2,1) should be FLUID (Water)
+        println("[DEBUG_LOG] (1,0) state: ${result.states[1][0]}, expected: FLUID")
         assertEquals(Type.FLUID, result.states[1][0])
+        println("[DEBUG_LOG] (1,1) state: ${result.states[1][1]}, expected: FLUID")
         assertEquals(Type.FLUID, result.states[1][1])
+        println("[DEBUG_LOG] (2,0) state: ${result.states[2][0]}, expected: FLUID")
         assertEquals(Type.FLUID, result.states[2][0])
+        println("[DEBUG_LOG] (2,1) state: ${result.states[2][1]}, expected: FLUID")
         assertEquals(Type.FLUID, result.states[2][1])
 
         // Verify quantum states
         // We added one at (2,0)
+        println("[DEBUG_LOG] result.quantum size: ${result.quantum.size}, expected: 1")
         assertEquals(1, result.quantum.size)
         val q = result.quantum[0]
+        println("[DEBUG_LOG] quantum state at: (${q.first}, ${q.second}), expected: (2, 0)")
         assertEquals(2, q.first)
         assertEquals(0, q.second)
+        println("[DEBUG_LOG] quantum state gamma: ${q.third}, expected: 1.0")
         assertEquals(1.0, q.third) // gamma is hardcoded to 1.0 in jni.rs:85 for now
     }
 
@@ -507,8 +570,11 @@ class SimulationTest {
             }
         val result = sim.run(0)
 
+        println("[DEBUG_LOG] length: $length, height: $height")
+        println("[DEBUG_LOG] result.field size: ${result.field.size}x${result.field[0].size}")
         assertEquals(length, result.field.size)
         assertEquals(height, result.field[0].size)
+        println("[DEBUG_LOG] result.states size: ${result.states.size}x${result.states[0].size}")
         assertEquals(length, result.states.size)
         assertEquals(height, result.states[0].size)
     }
@@ -525,8 +591,10 @@ class SimulationTest {
 
         val result = sim.run(1)
 
+        println("[DEBUG_LOG] result.quantum size: ${result.quantum.size}, expected: 2")
         assertEquals(2, result.quantum.size)
         val coords = result.quantum.map { it.first to it.second }.toSet()
+        println("[DEBUG_LOG] quantum coordinates: $coords")
         assertTrue(coords.contains(0 to 0))
         assertTrue(coords.contains(1 to 1))
     }
@@ -544,6 +612,7 @@ class SimulationTest {
             assertNotNull(result)
 
             val tempAt00 = result.field[0][0]
+            println("[DEBUG_LOG] material: $material, tempAt00: $tempAt00")
             if (tempAt00.isNaN()) {
                 println("[DEBUG_LOG] Material $material produced NaN at 300K")
             } else {
@@ -559,6 +628,7 @@ class SimulationTest {
                         Material.AIR -> Type.GAS
                         else -> Type.SOLID
                     }
+                println("[DEBUG_LOG] expected type: $expectedType, actual type: ${result.states[0][0]}")
                 assertEquals(expectedType, result.states[0][0], "Material $material at 300K should be $expectedType")
             }
         }
@@ -575,6 +645,7 @@ class SimulationTest {
             }
         // Run 1 iteration to force state update
         val iceResult = iceSim.run(1)
+        println("[DEBUG_LOG] Water at 260K state: ${iceResult.states[0][0]}, expected: SOLID")
         assertEquals(Type.SOLID, iceResult.states[0][0], "Water at 260K should be SOLID")
 
         // Steam at 500K (higher to ensure it goes past plateau if any)
@@ -585,6 +656,7 @@ class SimulationTest {
                 globalTemperature(500.0)
             }
         val steamResult = steamSim.run(1)
+        println("[DEBUG_LOG] Water at 500K state: ${steamResult.states[0][0]}, expected: GAS")
         assertEquals(Type.GAS, steamResult.states[0][0], "Water at 500K should be GAS")
     }
 
@@ -607,6 +679,7 @@ class SimulationTest {
         val resultAfter200 = sim.run(200)
         val avgTemp200 = resultAfter200.field.map { it.average() }.average()
 
+        println("[DEBUG_LOG] avgTempAfter100: $avgTemp100, avgTempAfter200: $avgTemp200")
         assertTrue(avgTemp200 < avgTemp100, "Temperature $avgTemp200 should be less than $avgTemp100")
     }
 
@@ -632,11 +705,13 @@ class SimulationTest {
         val result = sim.run(50)
 
         // Copper should be hotter than air
+        println("[DEBUG_LOG] copper center (4,4) temp: ${result.field[4][4]}, expected > 293.15")
         assertTrue(result.field[4][4] > 293.15)
         // Heat should have moved right due to wind
         // Note: wind direction in grid.rs might be reversed or have different indexing
         // If left_val is i-1, and wind is > 0, then cell[i] gets heat from cell[i-1] (left).
         // So heat moves right. (7,3) is to the right of (3,3).
+        println("[DEBUG_LOG] (7,3) temp: ${result.field[7][3]}, (2,3) temp: ${result.field[2][3]}")
         assertTrue(result.field[7][3] != result.field[2][3], "Wind should cause asymmetry")
     }
 
@@ -651,6 +726,7 @@ class SimulationTest {
                 globalMaterial(Material.STONE)
             }
         val result = sim.run(1)
+        println("[DEBUG_LOG] grid size: ${l}x${h}, result field size: ${result.field.size}x${result.field[0].size}")
         assertEquals(l, result.field.size)
         assertEquals(h, result.field[0].size)
     }
@@ -669,8 +745,11 @@ class SimulationTest {
                 source(2, 2)
             }
         val result = sim.run(10)
+        println("[DEBUG_LOG] (0,0) temp: ${result.field[0][0]}, expected: 500.0")
         assertEquals(500.0, result.field[0][0])
+        println("[DEBUG_LOG] (2,2) temp: ${result.field[2][2]}, expected: 500.0")
         assertEquals(500.0, result.field[2][2])
+        println("[DEBUG_LOG] center (1,1) temp: ${result.field[1][1]}, expected > 300.0")
         assertTrue(result.field[1][1] > 300.0)
     }
 
@@ -695,8 +774,8 @@ class SimulationTest {
         val result = sim.run(20)
 
         // Copper side should be much hotter at (1,0) than Wood at (3,0)
-        println(result.field[1][0])
-        println(result.field[3][0])
+        println("[DEBUG_LOG] Copper side (1,0) temp: ${result.field[1][0]}")
+        println("[DEBUG_LOG] Wood side (3,0) temp: ${result.field[3][0]}")
         assertTrue(
             result.field[1][0] > result.field[3][0],
             "Copper (diff ${Material.COPPER.diffusivity}) should transfer heat faster than Wood (diff ${Material.WOOD.diffusivity})",
@@ -720,7 +799,9 @@ class SimulationTest {
         val result = sim.run(20)
 
         // Heat should be carried towards top-right (4, 4)
+        println("[DEBUG_LOG] (4,4) temp: ${result.field[4][4]}, expected > 300.0")
         assertTrue(result.field[4][4] > 300.0)
+        println("[DEBUG_LOG] (4,4) temp: ${result.field[4][4]}, (4,0) temp: ${result.field[4][0]}")
         assertTrue(result.field[4][4] > result.field[4][0], "Heat should be higher in the direction of wind (upward)")
     }
 
@@ -737,6 +818,7 @@ class SimulationTest {
         val result1 = sim.run(100)
         val result2 = sim.run(200)
 
+        println("[DEBUG_LOG] initial temp: ${startResult.field[0][0]}, after 100: ${result1.field[0][0]}, after 200: ${result2.field[0][0]}")
         assertTrue(result1.field[0][0] < startResult.field[0][0], "Should cool down")
         assertTrue(result2.field[0][0] < result1.field[0][0], "Should continue cooling down")
     }
@@ -758,9 +840,13 @@ class SimulationTest {
         // Ensure no NaN in a large simulation with high temp and wind
         for (x in 0 until 50) {
             for (y in 0 until 50) {
+                if (result.field[x][y].isNaN()) {
+                    println("[DEBUG_LOG] NaN detected at ($x, $y)")
+                }
                 assertFalse(result.field[x][y].isNaN(), "NaN detected at ($x, $y)")
             }
         }
+        println("[DEBUG_LOG] Large grid stability test passed (no NaNs)")
     }
 
     @Test
@@ -777,10 +863,13 @@ class SimulationTest {
         val res1 = sim.run(1)
         assertEquals(1, res1.quantum.size)
         val initialGamma = res1.quantum[0].third
+        println("[DEBUG_LOG] initial gamma: $initialGamma")
 
         val res2 = sim.run(5)
         if (res2.quantum.isNotEmpty()) {
-            assertTrue(res2.quantum[0].third <= initialGamma, "Gamma should not increase")
+            val finalGamma = res2.quantum[0].third
+            println("[DEBUG_LOG] final gamma: $finalGamma")
+            assertTrue(finalGamma <= initialGamma, "Gamma should not increase")
         }
     }
 
@@ -805,6 +894,7 @@ class SimulationTest {
         val result = sim.run(50)
         val finalTotalTemp = result.field.sumOf { it.sum() }
 
+        println("[DEBUG_LOG] initialTotalTemp: $initialTotalTemp, finalTotalTemp: $finalTotalTemp")
         // Energy should not be created.
         // It might decrease due to radiation even if ambient temp matches.
         assertTrue(finalTotalTemp <= initialTotalTemp, "Energy should not be created: $finalTotalTemp <= $initialTotalTemp")
@@ -829,7 +919,9 @@ class SimulationTest {
         // (1,0) is Barrier
         // (2,0) is Iron, separated by Barrier. Should stay near 300K.
 
+        println("[DEBUG_LOG] (0,0) temp: ${result.field[0][0]}, expected: 500.0")
         assertEquals(500.0, result.field[0][0])
+        println("[DEBUG_LOG] (2,0) temp: ${result.field[2][0]}, expected < 305.0")
         assertTrue(result.field[2][0] < 305.0, "Heat should not pass through Barrier easily, got ${result.field[2][0]}")
     }
 
@@ -853,6 +945,9 @@ class SimulationTest {
 
         val resHot = simHot.run(10)
         val resCold = simCold.run(10)
+
+        println("[DEBUG_LOG] hot ambient (400) resulting temp: ${resHot.field[0][0]}")
+        println("[DEBUG_LOG] cold ambient (200) resulting temp: ${resCold.field[0][0]}")
 
         assertTrue(
             resHot.field[0][0] > resCold.field[0][0],

@@ -76,27 +76,45 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 Material::find_by_id(id as u8).thermal_properties().diffusivity
             }).collect();
 
-            let cells = source_mask
-                .into_iter()
-                .zip(material_mask)
-                .map(|(source, id)| {
+
+            let (initial_enthalpies, cells): (Vec<f64>, Vec<u16>) = temperatures
+                .iter()
+                .zip(&source_mask)
+                .zip(&material_mask)
+                .map(|((&temp, &source), &id)| {
                     let material = Material::find_by_id(id as u8);
-                    let status = if material == Air {
-                        2
-                    } else if material == Water {
-                        1
+                    let props = material.thermal_properties();
+
+                    let status = if let Some(mp) = props.melting_point {
+                        let bp = if props.volatile { props.boiling_point.unwrap_or(f64::MAX) } else { f64::MAX };
+                        if temp < mp {
+                            0 // Solid
+                        } else if temp <= bp {
+                            1 // Liquid
+                        } else {
+                            2 // Gas
+                        }
                     } else {
-                        0
+                        // Match Kotlin's default material type if temperature-based transition isn't defined
+                        match material {
+                            Air => 2, // Gas
+                            Water => 1, // Liquid
+                            _ => 0, // Solid
+                        }
                     };
 
-                    let mut base: u16 = if source { 0x1 } else { 0x0 };
+                    let initial_enthalpy = Cell::calculate_forward_enthalpy(temp, &props);
 
-                    base |= status << 1;
-                    base |= (id as u16) << 4;
+                    let mut base: u16 = 0;
+                    if source {
+                        base |= 0x1;
+                    }
+                    base |= (status & 0x7) << 1;
+                    base |= ((id as u16) & 0x1F) << 4;
 
-                    base
+                    (initial_enthalpy, base)
                 })
-                .collect::<Vec<u16>>();
+                .unzip();
 
             let mut quantum_indices: Vec<isize> = vec![-1; (length * height) as usize];
             let mut quantum: Vec<Quantum> = vec![];
@@ -111,13 +129,13 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                             kappa: it[2],
                             index: it[3] as i32,
                         });
-                        quantum_indices[i] = quantum.len() as isize;
+                        quantum_indices[i] = (quantum.len() - 1) as isize;
                     }
                 });
             }
 
             let grid = Grid::new(
-                temperatures,
+                initial_enthalpies,
                 alpha_mask,
                 quantum_indices,
                 quantum,

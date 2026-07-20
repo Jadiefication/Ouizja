@@ -31,6 +31,7 @@ impl Material {
             5 => Glass,
             6 => Stone,
             7 => Air,
+            8 => Barrier,
             _ => Barrier,
         }
     }

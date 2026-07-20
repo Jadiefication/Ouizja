@@ -70,6 +70,11 @@ val buildNative by tasks.registering {
     notCompatibleWithConfigurationCache("Uses Cargo")
     description = "Build the Rust native library and copy it into resources/native."
     doLast {
+        if (System.getenv("SKIP_NATIVE_BUILD") == "true") {
+            logger.lifecycle("Skipping native build because SKIP_NATIVE_BUILD is set to true")
+            return@doLast
+        }
+
         val isJitpack = System.getenv("JITPACK") == "true"
         val os = System.getProperty("os.name").lowercase()
 

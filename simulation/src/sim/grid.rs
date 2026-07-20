@@ -108,25 +108,27 @@ impl Grid {
                     let center_val = it.get_temp(material, &status);
 
                     let down_j = if row == 0 { 0 } else { row - 1 };
-                    let down_m = self.metadata[down_j];
+                    let down_index = (j / self.height) * self.height + down_j;
+                    let down_m = self.metadata[down_index];
 
                     let d_status = Status::find_by_id(((down_m >> 1) & 0x07) as u8);
                     let d_material = Material::find_by_id(((down_m >> 4) & 0x1F) as u8);
 
-                    let down_val = self.enthalpies[down_j].get_temp(d_material, &d_status);
+                    let down_val = self.enthalpies[down_index].get_temp(d_material, &d_status);
 
                     let buoyancy_wind = if down_val > center_val {
-                        (down_val - center_val) * 0.1
+                        (down_val - center_val) * 1.0
                     } else {
                         0.0
                     };
 
-                    (buoyancy_wind + global_wind.y).abs() + global_wind.x
+                    let row_v = (buoyancy_wind + global_wind.y).abs() + global_wind.x.abs();
+                    row_v
                 })
                 .max_by(|a, b| a.partial_cmp(b).unwrap_or(Equal))
                 .unwrap_or(0.0);
 
-            delta_t = delta_t.min(1.0 / v_max);
+            delta_t = delta_t.min(1.0 / v_max.max(1.0));
 
             next_field
                 .par_chunks_exact_mut(self.height)
@@ -135,15 +137,15 @@ impl Grid {
                 .zip(self.alpha_mask.par_chunks_exact(self.height))
                 .zip(self.metadata.par_chunks_exact(self.height))
                 .enumerate()
-                .for_each(|(i, ((((next_row, next_m_row), source_row), alpha_row), metadata_row))| {
-                    for (j, &mut mut enthalpy) in next_row.iter_mut().enumerate() {
+                .for_each(|(i, ((((next_row, next_m_row), _source_row), alpha_row), metadata_row))| {
+                    for (j, enthalpy) in next_row.iter_mut().enumerate() {
                         let material = Material::find_by_id(((metadata_row[j] >> 4) & 0x1F) as u8);
                         let status = Status::find_by_id(((metadata_row[j] >> 1) & 0x07) as u8);
                         if metadata_row[j] & 0x1 == 1 || material == Barrier {
                             continue;
                         }
                         let alpha = alpha_row[j];
-                        let center_val = enthalpy.get_temp(material, &status);
+                        let center_val = self.enthalpies[i * self.height + j].get_temp(material, &status);
 
                         let left_i = if i == 0 { 0 } else { i - 1 };
                         let right_i = if i + 1 >= self.length { i } else { i + 1 };
@@ -152,8 +154,8 @@ impl Grid {
 
                         let left_m = self.metadata[left_i * self.height + j];
                         let right_m = self.metadata[right_i * self.height + j];
-                        let down_m = metadata_row[down_j];
-                        let up_m = metadata_row[up_j];
+                        let down_m = self.metadata[i * self.height + down_j];
+                        let up_m = self.metadata[i * self.height + up_j];
 
                         let r_material = Material::find_by_id(((right_m >> 4) & 0x1F) as u8);
                         let r_status = Status::find_by_id(((right_m >> 1) & 0x07) as u8);
@@ -182,12 +184,12 @@ impl Grid {
                         let down_val = if d_material == Barrier {
                             center_val
                         } else {
-                            source_row[down_j].get_temp(d_material, &d_status)
+                            self.enthalpies[i * self.height + down_j].get_temp(d_material, &d_status)
                         };
                         let up_val = if u_material == Barrier {
                             center_val
                         } else {
-                            source_row[up_j].get_temp(u_material, &u_status)
+                            self.enthalpies[i * self.height + up_j].get_temp(u_material, &u_status)
                         };
 
                         let laplacian =
@@ -210,7 +212,7 @@ impl Grid {
                             advection_x = global_wind.x.abs() * (source_x_temp - center_val);
 
                             let buoyancy_wind = if down_val > center_val {
-                                (down_val - center_val) * 0.1
+                                (down_val - center_val) * 1.0
                             } else {
                                 0.0
                             };
@@ -230,23 +232,22 @@ impl Grid {
                         }
 
                         let cp = enthalpy.get_capacity(material, &status);
-                        let delta_t_conduction = alpha * delta_t * laplacian * cp;
-                        let delta_t_advection = (advection_x + advection_y) * delta_t * cp;
+                        let delta_t_conduction = alpha * delta_t * laplacian;
+                        let delta_t_advection = (advection_x + advection_y) * delta_t;
 
-                        let dq = delta_t_conduction + delta_t_advection;
+                        let dq = (delta_t_conduction * cp) + (delta_t_advection * cp);
 
                         let safe_temp = center_val.max(0.0);
 
                         let dq_rad = f64::vacuum_radiation(material, safe_temp, delta_t);
                         let dq_newton = Cell::newton_cooling(delta_t, safe_temp - self.t_ambient);
 
-                        let mut new_enthalpy = source_row[j] + dq - dq_rad - dq_newton;
-
+                        let mut new_enthalpy = self.enthalpies[i * self.height + j] + dq - dq_rad - dq_newton;
                         if new_enthalpy < 0.0 || new_enthalpy.is_nan() {
                             new_enthalpy = 0.0;
                         }
 
-                        enthalpy = new_enthalpy;
+                        *enthalpy = new_enthalpy;
 
                         let props = material.thermal_properties();
                         let milestones = if !props.volatile {
@@ -262,33 +263,31 @@ impl Grid {
 
                         let is_sublimating_material = material == Air || material == Water;
                         let skip_liquid = is_sublimating_material && (props.melting_point == props.boiling_point);
-                        let inverse_mask = !0xF;
+                        let inverse_mask = !0x000E;
 
-                        if enthalpy < milestones.h_melting {
-                            next_m_row[j] = metadata_row[j] & inverse_mask;
-                        }
-
-                        if skip_liquid {
+                        if *enthalpy < milestones.h_melting {
+                            next_m_row[j] = (metadata_row[j] & inverse_mask) | (0 << 1); // Solid
+                        } else if skip_liquid {
                             let total_sublimation_latent =
                                 props.latent_fusion.unwrap_or(0.0) + props.latent_vaporization.unwrap_or(0.0);
                             let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
 
-                            if enthalpy < h_sublimation_end {
+                            if *enthalpy < h_sublimation_end {
                                 next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1);
                             } else {
                                 next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1);
                             };
                         } else {
-                            if enthalpy < milestones.h_fused {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (3 << 1);
-                            } else if enthalpy < milestones.h_boiling {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (1 << 1);
-                            } else if enthalpy < milestones.h_vaporized {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1);
+                            if *enthalpy < milestones.h_fused {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (3 << 1); // Fusing
+                            } else if *enthalpy < milestones.h_boiling {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (1 << 1); // Liquid
+                            } else if *enthalpy < milestones.h_vaporized {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1); // Vaporizing
+                            } else {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1); // Gas
                             }
                         }
-
-                        next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1);
                     }
                 });
 
