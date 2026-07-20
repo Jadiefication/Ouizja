@@ -1,12 +1,17 @@
 use crate::sim::cell::cell::Cell;
-use crate::sim::mask::Status::Solid;
-use crate::sim::material::Material::Barrier;
+use crate::sim::cell::quantum::Quantum;
+use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
+use crate::sim::material::Material::{Air, Barrier, Water};
 use crate::sim::wind::Wind;
 use haje::vec::vec2::Vec2;
 use rayon::iter::IndexedParallelIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::{IntoParallelRefIterator, ParallelSlice, ParallelSliceMut};
 use std::cmp::Ordering::Equal;
+use crate::float::ThermUtils;
+use crate::sim::cell::therms::EnthalpyMilestones;
+use crate::sim::mask::Status;
+use crate::sim::material::Material;
 
 /// The main simulation grid containing all cells and global properties.
 pub struct Grid {
@@ -16,7 +21,19 @@ pub struct Grid {
     height: usize,
 
     /// Flat collection of all cells in the grid.
-    pub cells: Vec<Cell>,
+    //pub cells: Vec<Cell>,
+    pub enthalpies: Vec<f64>,
+    pub alpha_mask: Vec<f64>,
+    pub quantum_indices: Vec<isize>,
+    pub quantum: Vec<Quantum>,
+    /// pub material_mask: Vec<Material>,
+    /// pub source_mask: Vec<bool>,
+    /// pub status_mask: Vec<Status>,
+    /// Collapses into this
+    /// 1st Bit - Source
+    /// 2nd - 4th Bits - Status
+    /// 5th - 9th Bits - Material
+    pub metadata: Vec<u16>,
     /// Collection of wind vectors affecting the simulation.
     winds: Vec<Wind>,
     /// Ambient temperature of the environment.
@@ -26,7 +43,11 @@ pub struct Grid {
 impl Grid {
     /// Creates a new simulation grid.
     pub fn new(
-        cells: Vec<Cell>,
+        enthalpies: Vec<f64>,
+        alpha_mask: Vec<f64>,
+        quantum_indices: Vec<isize>,
+        quantum: Vec<Quantum>,
+        metadata: Vec<u16>,
         length: usize,
         height: usize,
         winds: Vec<Wind>,
@@ -35,7 +56,11 @@ impl Grid {
         Self {
             length,
             height,
-            cells,
+            enthalpies,
+            alpha_mask,
+            quantum_indices,
+            quantum,
+            metadata,
             winds,
             t_ambient,
         }
@@ -45,10 +70,7 @@ impl Grid {
     /// Uses parallel processing for cell updates.
     pub fn run(&mut self, iterations: usize) {
         let max_alpha = self
-            .cells
-            .iter()
-            .map(|it| it.mask.alpha)
-            .collect::<Vec<f64>>()
+            .alpha_mask
             .iter()
             .copied()
             .fold(0.0f64, f64::max);
@@ -59,7 +81,8 @@ impl Grid {
         } else {
             max_dt_bound
         };
-        let mut next_field = self.cells.clone();
+        let mut next_field = self.enthalpies.clone();
+        let mut next_metadata = self.metadata.clone();
 
         let mut global_wind = Vec2 { x: 0.0, y: 0.0 };
         self.winds
@@ -73,16 +96,24 @@ impl Grid {
 
         for n in 0..iterations {
             let v_max = self
-                .cells
+                .enthalpies
                 .par_iter()
                 .enumerate()
-                .map(|(j, it)| {
+                .zip(&self.metadata)
+                .map(|((j, it), metadata)| {
+                    let status = Status::find_by_id(((metadata >> 1) & 0x07) as u8);
+                    let material = Material::find_by_id(((metadata >> 4) & 0x1F) as u8);
                     let row = j % self.height;
 
-                    let center_val = it.get_temperature();
+                    let center_val = it.get_temp(material, &status);
 
                     let down_j = if row == 0 { 0 } else { row - 1 };
-                    let down_val = self.cells[down_j].get_temperature();
+                    let down_m = self.metadata[down_j];
+
+                    let d_status = Status::find_by_id(((down_m >> 1) & 0x07) as u8);
+                    let d_material = Material::find_by_id(((down_m >> 4) & 0x1F) as u8);
+
+                    let down_val = self.enthalpies[down_j].get_temp(d_material, &d_status);
 
                     let buoyancy_wind = if down_val > center_val {
                         (down_val - center_val) * 0.1
@@ -99,42 +130,64 @@ impl Grid {
 
             next_field
                 .par_chunks_exact_mut(self.height)
-                .zip(self.cells.par_chunks_exact(self.height))
+                .zip(next_metadata.par_chunks_exact_mut(self.height))
+                .zip(self.enthalpies.par_chunks_exact(self.height))
+                .zip(self.alpha_mask.par_chunks_exact(self.height))
+                .zip(self.metadata.par_chunks_exact(self.height))
                 .enumerate()
-                .for_each(|(i, (next_row, source_row))| {
-                    for (j, cell) in next_row.iter_mut().enumerate() {
-                        if source_row[j].mask.source || source_row[j].mask.material == Barrier {
+                .for_each(|(i, ((((next_row, next_m_row), source_row), alpha_row), metadata_row))| {
+                    for (j, &mut mut enthalpy) in next_row.iter_mut().enumerate() {
+                        let material = Material::find_by_id(((metadata_row[j] >> 4) & 0x1F) as u8);
+                        let status = Status::find_by_id(((metadata_row[j] >> 1) & 0x07) as u8);
+                        if metadata_row[j] & 0x1 == 1 || material == Barrier {
                             continue;
                         }
-                        let alpha = source_row[j].mask.alpha;
-                        let center_val = source_row[j].get_temperature();
+                        let alpha = alpha_row[j];
+                        let center_val = enthalpy.get_temp(material, &status);
 
                         let left_i = if i == 0 { 0 } else { i - 1 };
                         let right_i = if i + 1 >= self.length { i } else { i + 1 };
                         let down_j = if j == 0 { 0 } else { j - 1 };
                         let up_j = if j + 1 >= self.height { j } else { j + 1 };
 
+                        let left_m = self.metadata[left_i * self.height + j];
+                        let right_m = self.metadata[right_i * self.height + j];
+                        let down_m = metadata_row[down_j];
+                        let up_m = metadata_row[up_j];
+
+                        let r_material = Material::find_by_id(((right_m >> 4) & 0x1F) as u8);
+                        let r_status = Status::find_by_id(((right_m >> 1) & 0x07) as u8);
+
+                        let u_material = Material::find_by_id(((up_m >> 4) & 0x1F) as u8);
+                        let u_status = Status::find_by_id(((up_m >> 1) & 0x07) as u8);
+
+                        let d_material = Material::find_by_id(((down_m >> 4) & 0x1F) as u8);
+                        let d_status = Status::find_by_id(((down_m >> 1) & 0x07) as u8);
+
+                        let l_material = Material::find_by_id(((left_m >> 4) & 0x1F) as u8);
+                        let l_status = Status::find_by_id(((left_m >> 1) & 0x07) as u8);
+
                         let left_val =
-                            if self.cells[left_i * self.height + j].mask.material == Barrier {
+                            if l_material == Barrier {
                                 center_val
                             } else {
-                                self.cells[left_i * self.height + j].get_temperature()
+                                self.enthalpies[left_i * self.height + j].get_temp(l_material, &l_status)
                             };
                         let right_val =
-                            if self.cells[right_i * self.height + j].mask.material == Barrier {
+                            if r_material == Barrier {
                                 center_val
                             } else {
-                                self.cells[right_i * self.height + j].get_temperature()
+                                self.enthalpies[right_i * self.height + j].get_temp(r_material, &r_status)
                             };
-                        let down_val = if source_row[down_j].mask.material == Barrier {
+                        let down_val = if d_material == Barrier {
                             center_val
                         } else {
-                            source_row[down_j].get_temperature()
+                            source_row[down_j].get_temp(d_material, &d_status)
                         };
-                        let up_val = if source_row[up_j].mask.material == Barrier {
+                        let up_val = if u_material == Barrier {
                             center_val
                         } else {
-                            source_row[up_j].get_temperature()
+                            source_row[up_j].get_temp(u_material, &u_status)
                         };
 
                         let laplacian =
@@ -144,7 +197,7 @@ impl Grid {
                         let mut advection_x = 0.0;
                         let mut advection_y = 0.0;
 
-                        if source_row[j].mask.status != Solid {
+                        if status != Solid {
                             let source_x_temp = if global_wind.x > 0.0 {
                                 if i == 0 { external_wind_temp } else { left_val }
                             } else {
@@ -176,7 +229,7 @@ impl Grid {
                             advection_y = total_wind_y.abs() * (source_y_temp - center_val);
                         }
 
-                        let cp = cell.get_capacity();
+                        let cp = enthalpy.get_capacity(material, &status);
                         let delta_t_conduction = alpha * delta_t * laplacian * cp;
                         let delta_t_advection = (advection_x + advection_y) * delta_t * cp;
 
@@ -184,30 +237,82 @@ impl Grid {
 
                         let safe_temp = center_val.max(0.0);
 
-                        let dq_rad = source_row[j].vacuum_radiation(safe_temp, delta_t);
+                        let dq_rad = f64::vacuum_radiation(material, safe_temp, delta_t);
                         let dq_newton = Cell::newton_cooling(delta_t, safe_temp - self.t_ambient);
 
-                        let mut new_enthalpy = source_row[j].enthalpy + dq - dq_rad - dq_newton;
+                        let mut new_enthalpy = source_row[j] + dq - dq_rad - dq_newton;
 
                         if new_enthalpy < 0.0 || new_enthalpy.is_nan() {
                             new_enthalpy = 0.0;
                         }
 
-                        cell.enthalpy = new_enthalpy;
-                        cell.update_state_from_enthalpy();
+                        enthalpy = new_enthalpy;
 
-                        if let Some(ref mut quantum) = cell.mask.quantum {
-                            let new_gamma = quantum.get_next(center_val, delta_t);
-                            if new_gamma <= 0.0 {
-                                cell.mask.quantum = None;
+                        let props = material.thermal_properties();
+                        let milestones = if !props.volatile {
+                            EnthalpyMilestones {
+                                h_melting: f64::MAX,
+                                h_fused: f64::MAX,
+                                h_boiling: f64::MAX,
+                                h_vaporized: f64::MAX,
+                            }
+                        } else {
+                            EnthalpyMilestones::from_properties(&props)
+                        };
+
+                        let is_sublimating_material = material == Air || material == Water;
+                        let skip_liquid = is_sublimating_material && (props.melting_point == props.boiling_point);
+                        let inverse_mask = !0xF;
+
+                        if enthalpy < milestones.h_melting {
+                            next_m_row[j] = metadata_row[j] & inverse_mask;
+                        }
+
+                        if skip_liquid {
+                            let total_sublimation_latent =
+                                props.latent_fusion.unwrap_or(0.0) + props.latent_vaporization.unwrap_or(0.0);
+                            let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
+
+                            if enthalpy < h_sublimation_end {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1);
                             } else {
-                                quantum.gamma = new_gamma;
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1);
+                            };
+                        } else {
+                            if enthalpy < milestones.h_fused {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (3 << 1);
+                            } else if enthalpy < milestones.h_boiling {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (1 << 1);
+                            } else if enthalpy < milestones.h_vaporized {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1);
                             }
                         }
+
+                        next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1);
                     }
                 });
 
-            self.cells.copy_from_slice(&next_field);
+            self.metadata.copy_from_slice(&next_metadata);
+            self.enthalpies.copy_from_slice(&next_field);
+
+            self.quantum_indices
+                .iter_mut()
+                .zip(&self.enthalpies)
+                .zip(&self.metadata)
+                .for_each(|((&mut mut i, enthalpy), metadata)| {
+                    if i != -1 {
+                        let status = Status::find_by_id(((metadata >> 1) & 0x07) as u8);
+                        let material = Material::find_by_id(((metadata >> 4) & 0x1F) as u8);
+                        let mut quantum = &mut self.quantum[i as usize];
+                        let center_val = enthalpy.get_temp(material, &status);
+                        let new_gamma = quantum.get_next(center_val, delta_t);
+                        if new_gamma <= 0.0 {
+                            i = -1
+                        } else {
+                            quantum.gamma = new_gamma;
+                        }
+                    }
+                });
         }
     }
 }

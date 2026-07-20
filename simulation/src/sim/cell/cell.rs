@@ -1,4 +1,4 @@
-use crate::float::SafeDiv;
+use crate::float::ThermUtils;
 use crate::sim::cell::therms::{EnthalpyMilestones, ThermalProperties};
 use crate::sim::mask::Mask;
 use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
@@ -47,9 +47,7 @@ impl Cell {
 
             return if self.enthalpy < h_sublimation_end {
                 let current_latent = self.enthalpy - milestones.h_melting;
-                self.mask.status = Vaporizing {
-                    l_energy: current_latent,
-                };
+                self.mask.status = Vaporizing;
                 props.melting_point.unwrap_or(0.0)
             } else {
                 self.mask.status = Gas;
@@ -65,9 +63,7 @@ impl Cell {
 
         if self.enthalpy < milestones.h_fused {
             let current_latent = self.enthalpy - milestones.h_melting;
-            self.mask.status = Fusing {
-                l_energy: current_latent,
-            };
+            self.mask.status = Fusing;
             return props.melting_point.unwrap_or(0.0);
         }
 
@@ -80,9 +76,7 @@ impl Cell {
 
         if self.enthalpy < milestones.h_vaporized {
             let current_latent = self.enthalpy - milestones.h_boiling;
-            self.mask.status = Vaporizing {
-                l_energy: current_latent,
-            };
+            self.mask.status = Vaporizing;
             return props.boiling_point.unwrap_or(0.0);
         }
 

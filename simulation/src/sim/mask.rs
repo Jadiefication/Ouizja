@@ -1,4 +1,5 @@
 use crate::sim::cell::quantum::Quantum;
+use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::material::Material;
 
 /// Contains the physical and material metadata for a cell.
@@ -27,13 +28,20 @@ pub enum Status {
     /// Gaseous state.
     Gas = 2,
     /// Currently transitioning from solid to liquid.
-    Fusing {
-        /// Energy absorbed so far for fusion.
-        l_energy: f64,
-    } = 3,
+    Fusing = 3,
     /// Currently transitioning from liquid to gas.
-    Vaporizing {
-        /// Energy absorbed so far for vaporization.
-        l_energy: f64,
-    } = 4,
+    Vaporizing = 4,
+}
+
+impl Status {
+    pub fn find_by_id(id: u8) -> Self {
+        match id {
+            0 => Solid,
+            1 => Liquid,
+            2 => Gas,
+            3 => Fusing,
+            4 => Vaporizing,
+            _ => panic!("Invalid ID {}!", id)
+        }
+    }
 }
