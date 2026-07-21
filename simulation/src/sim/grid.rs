@@ -49,7 +49,7 @@ impl Grid {
         quantum: Vec<Quantum>,
         metadata: Vec<u16>,
         winds: Vec<Wind>,
-        grid_info: (usize, usize, f64)
+        grid_info: (usize, usize, f64),
     ) -> Self {
         let length = grid_info.0;
         let height = grid_info.1;
@@ -71,11 +71,7 @@ impl Grid {
     /// Executes the simulation for a given number of iterations.
     /// Uses parallel processing for cell updates.
     pub fn run(&mut self, iterations: usize) {
-        let max_alpha = self
-            .alpha_mask
-            .iter()
-            .copied()
-            .fold(0.0f64, f64::max);
+        let max_alpha = self.alpha_mask.iter().copied().fold(0.0f64, f64::max);
 
         let max_dt_bound = 0.5;
         let mut delta_t = if max_alpha > 0.0 {
@@ -138,159 +134,169 @@ impl Grid {
                 .zip(self.alpha_mask.par_chunks_exact(self.height))
                 .zip(self.metadata.par_chunks_exact(self.height))
                 .enumerate()
-                .for_each(|(i, ((((next_row, next_m_row), _source_row), alpha_row), metadata_row))| {
-                    for (j, enthalpy) in next_row.iter_mut().enumerate() {
-                        let material = Material::find_by_id(((metadata_row[j] >> 4) & 0x1F) as u8);
-                        let status = Status::find_by_id(((metadata_row[j] >> 1) & 0x07) as u8);
-                        if metadata_row[j] & 0x1 == 1 || material == Barrier {
-                            continue;
-                        }
-                        let alpha = alpha_row[j];
-                        let center_val = self.enthalpies[i * self.height + j].get_temp(material, &status);
+                .for_each(
+                    |(i, ((((next_row, next_m_row), _source_row), alpha_row), metadata_row))| {
+                        for (j, enthalpy) in next_row.iter_mut().enumerate() {
+                            let material =
+                                Material::find_by_id(((metadata_row[j] >> 4) & 0x1F) as u8);
+                            let status = Status::find_by_id(((metadata_row[j] >> 1) & 0x07) as u8);
+                            if metadata_row[j] & 0x1 == 1 || material == Barrier {
+                                continue;
+                            }
+                            let alpha = alpha_row[j];
+                            let center_val =
+                                self.enthalpies[i * self.height + j].get_temp(material, &status);
 
-                        let left_i = if i == 0 { 0 } else { i - 1 };
-                        let right_i = if i + 1 >= self.length { i } else { i + 1 };
-                        let down_j = if j == 0 { 0 } else { j - 1 };
-                        let up_j = if j + 1 >= self.height { j } else { j + 1 };
+                            let left_i = if i == 0 { 0 } else { i - 1 };
+                            let right_i = if i + 1 >= self.length { i } else { i + 1 };
+                            let down_j = if j == 0 { 0 } else { j - 1 };
+                            let up_j = if j + 1 >= self.height { j } else { j + 1 };
 
-                        let left_m = self.metadata[left_i * self.height + j];
-                        let right_m = self.metadata[right_i * self.height + j];
-                        let down_m = self.metadata[i * self.height + down_j];
-                        let up_m = self.metadata[i * self.height + up_j];
+                            let left_m = self.metadata[left_i * self.height + j];
+                            let right_m = self.metadata[right_i * self.height + j];
+                            let down_m = self.metadata[i * self.height + down_j];
+                            let up_m = self.metadata[i * self.height + up_j];
 
-                        let r_material = Material::find_by_id(((right_m >> 4) & 0x1F) as u8);
-                        let r_status = Status::find_by_id(((right_m >> 1) & 0x07) as u8);
+                            let r_material = Material::find_by_id(((right_m >> 4) & 0x1F) as u8);
+                            let r_status = Status::find_by_id(((right_m >> 1) & 0x07) as u8);
 
-                        let u_material = Material::find_by_id(((up_m >> 4) & 0x1F) as u8);
-                        let u_status = Status::find_by_id(((up_m >> 1) & 0x07) as u8);
+                            let u_material = Material::find_by_id(((up_m >> 4) & 0x1F) as u8);
+                            let u_status = Status::find_by_id(((up_m >> 1) & 0x07) as u8);
 
-                        let d_material = Material::find_by_id(((down_m >> 4) & 0x1F) as u8);
-                        let d_status = Status::find_by_id(((down_m >> 1) & 0x07) as u8);
+                            let d_material = Material::find_by_id(((down_m >> 4) & 0x1F) as u8);
+                            let d_status = Status::find_by_id(((down_m >> 1) & 0x07) as u8);
 
-                        let l_material = Material::find_by_id(((left_m >> 4) & 0x1F) as u8);
-                        let l_status = Status::find_by_id(((left_m >> 1) & 0x07) as u8);
+                            let l_material = Material::find_by_id(((left_m >> 4) & 0x1F) as u8);
+                            let l_status = Status::find_by_id(((left_m >> 1) & 0x07) as u8);
 
-                        let left_val =
-                            if l_material == Barrier {
+                            let left_val = if l_material == Barrier {
                                 center_val
                             } else {
-                                self.enthalpies[left_i * self.height + j].get_temp(l_material, &l_status)
+                                self.enthalpies[left_i * self.height + j]
+                                    .get_temp(l_material, &l_status)
                             };
-                        let right_val =
-                            if r_material == Barrier {
+                            let right_val = if r_material == Barrier {
                                 center_val
                             } else {
-                                self.enthalpies[right_i * self.height + j].get_temp(r_material, &r_status)
+                                self.enthalpies[right_i * self.height + j]
+                                    .get_temp(r_material, &r_status)
                             };
-                        let down_val = if d_material == Barrier {
-                            center_val
-                        } else {
-                            self.enthalpies[i * self.height + down_j].get_temp(d_material, &d_status)
-                        };
-                        let up_val = if u_material == Barrier {
-                            center_val
-                        } else {
-                            self.enthalpies[i * self.height + up_j].get_temp(u_material, &u_status)
-                        };
-
-                        let laplacian =
-                            left_val + right_val + up_val + down_val - (center_val * 4.0);
-
-                        // --- PHASE 2: CONVECTION & ADVECTION ---
-                        let mut advection_x = 0.0;
-                        let mut advection_y = 0.0;
-
-                        if status != Solid {
-                            let source_x_temp = if global_wind.x > 0.0 {
-                                if i == 0 { external_wind_temp } else { left_val }
+                            let down_val = if d_material == Barrier {
+                                center_val
                             } else {
-                                if i + 1 >= self.length {
-                                    external_wind_temp
+                                self.enthalpies[i * self.height + down_j]
+                                    .get_temp(d_material, &d_status)
+                            };
+                            let up_val = if u_material == Barrier {
+                                center_val
+                            } else {
+                                self.enthalpies[i * self.height + up_j]
+                                    .get_temp(u_material, &u_status)
+                            };
+
+                            let laplacian =
+                                left_val + right_val + up_val + down_val - (center_val * 4.0);
+
+                            // --- PHASE 2: CONVECTION & ADVECTION ---
+                            let mut advection_x = 0.0;
+                            let mut advection_y = 0.0;
+
+                            if status != Solid {
+                                let source_x_temp = if global_wind.x > 0.0 {
+                                    if i == 0 { external_wind_temp } else { left_val }
                                 } else {
-                                    right_val
-                                }
-                            };
-                            advection_x = global_wind.x.abs() * (source_x_temp - center_val);
+                                    if i + 1 >= self.length {
+                                        external_wind_temp
+                                    } else {
+                                        right_val
+                                    }
+                                };
+                                advection_x = global_wind.x.abs() * (source_x_temp - center_val);
 
-                            let buoyancy_wind = if down_val > center_val {
-                                (down_val - center_val) * 1.0
-                            } else {
-                                0.0
-                            };
-
-                            let total_wind_y: f64 = global_wind.y + buoyancy_wind;
-
-                            let source_y_temp = if total_wind_y > 0.0 {
-                                if j == 0 { external_wind_temp } else { down_val }
-                            } else {
-                                if j + 1 >= self.height {
-                                    external_wind_temp
+                                let buoyancy_wind = if down_val > center_val {
+                                    (down_val - center_val) * 1.0
                                 } else {
-                                    up_val
+                                    0.0
+                                };
+
+                                let total_wind_y: f64 = global_wind.y + buoyancy_wind;
+
+                                let source_y_temp = if total_wind_y > 0.0 {
+                                    if j == 0 { external_wind_temp } else { down_val }
+                                } else {
+                                    if j + 1 >= self.height {
+                                        external_wind_temp
+                                    } else {
+                                        up_val
+                                    }
+                                };
+                                advection_y = total_wind_y.abs() * (source_y_temp - center_val);
+                            }
+
+                            let cp = enthalpy.get_capacity(material, &status);
+                            let delta_t_conduction = alpha * delta_t * laplacian;
+                            let delta_t_advection = (advection_x + advection_y) * delta_t;
+
+                            let dq = (delta_t_conduction * cp) + (delta_t_advection * cp);
+
+                            let safe_temp = center_val.max(0.0);
+
+                            let dq_rad = f64::vacuum_radiation(material, safe_temp, delta_t);
+                            let dq_newton =
+                                Cell::newton_cooling(delta_t, safe_temp - self.t_ambient);
+
+                            let mut new_enthalpy =
+                                self.enthalpies[i * self.height + j] + dq - dq_rad - dq_newton;
+                            if new_enthalpy < 0.0 || new_enthalpy.is_nan() {
+                                new_enthalpy = 0.0;
+                            }
+
+                            *enthalpy = new_enthalpy;
+
+                            let props = material.thermal_properties();
+                            let milestones = if !props.volatile {
+                                EnthalpyMilestones {
+                                    h_melting: f64::MAX,
+                                    h_fused: f64::MAX,
+                                    h_boiling: f64::MAX,
+                                    h_vaporized: f64::MAX,
                                 }
-                            };
-                            advection_y = total_wind_y.abs() * (source_y_temp - center_val);
-                        }
-
-                        let cp = enthalpy.get_capacity(material, &status);
-                        let delta_t_conduction = alpha * delta_t * laplacian;
-                        let delta_t_advection = (advection_x + advection_y) * delta_t;
-
-                        let dq = (delta_t_conduction * cp) + (delta_t_advection * cp);
-
-                        let safe_temp = center_val.max(0.0);
-
-                        let dq_rad = f64::vacuum_radiation(material, safe_temp, delta_t);
-                        let dq_newton = Cell::newton_cooling(delta_t, safe_temp - self.t_ambient);
-
-                        let mut new_enthalpy = self.enthalpies[i * self.height + j] + dq - dq_rad - dq_newton;
-                        if new_enthalpy < 0.0 || new_enthalpy.is_nan() {
-                            new_enthalpy = 0.0;
-                        }
-
-                        *enthalpy = new_enthalpy;
-
-                        let props = material.thermal_properties();
-                        let milestones = if !props.volatile {
-                            EnthalpyMilestones {
-                                h_melting: f64::MAX,
-                                h_fused: f64::MAX,
-                                h_boiling: f64::MAX,
-                                h_vaporized: f64::MAX,
-                            }
-                        } else {
-                            EnthalpyMilestones::from_properties(&props)
-                        };
-
-                        let is_sublimating_material = material == Air || material == Water;
-                        let skip_liquid = is_sublimating_material && (props.melting_point == props.boiling_point);
-                        let inverse_mask = !0x000E;
-
-                        if *enthalpy < milestones.h_melting {
-                            next_m_row[j] = (metadata_row[j] & inverse_mask) | (0 << 1); // Solid
-                        } else if skip_liquid {
-                            let total_sublimation_latent =
-                                props.latent_fusion.unwrap_or(0.0) + props.latent_vaporization.unwrap_or(0.0);
-                            let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
-
-                            if *enthalpy < h_sublimation_end {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1);
                             } else {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1);
+                                EnthalpyMilestones::from_properties(&props)
                             };
-                        } else {
-                            if *enthalpy < milestones.h_fused {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (3 << 1); // Fusing
-                            } else if *enthalpy < milestones.h_boiling {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (1 << 1); // Liquid
-                            } else if *enthalpy < milestones.h_vaporized {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1); // Vaporizing
+
+                            let is_sublimating_material = material == Air || material == Water;
+                            let skip_liquid = is_sublimating_material
+                                && (props.melting_point == props.boiling_point);
+                            let inverse_mask = !0x000E;
+
+                            if *enthalpy < milestones.h_melting {
+                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (0 << 1); // Solid
+                            } else if skip_liquid {
+                                let total_sublimation_latent = props.latent_fusion.unwrap_or(0.0)
+                                    + props.latent_vaporization.unwrap_or(0.0);
+                                let h_sublimation_end =
+                                    milestones.h_melting + total_sublimation_latent;
+
+                                if *enthalpy < h_sublimation_end {
+                                    next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1);
+                                } else {
+                                    next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1);
+                                };
                             } else {
-                                next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1); // Gas
+                                if *enthalpy < milestones.h_fused {
+                                    next_m_row[j] = (metadata_row[j] & inverse_mask) | (3 << 1); // Fusing
+                                } else if *enthalpy < milestones.h_boiling {
+                                    next_m_row[j] = (metadata_row[j] & inverse_mask) | (1 << 1); // Liquid
+                                } else if *enthalpy < milestones.h_vaporized {
+                                    next_m_row[j] = (metadata_row[j] & inverse_mask) | (4 << 1); // Vaporizing
+                                } else {
+                                    next_m_row[j] = (metadata_row[j] & inverse_mask) | (2 << 1); // Gas
+                                }
                             }
                         }
-                    }
-                });
+                    },
+                );
 
             self.metadata.copy_from_slice(&next_metadata);
             self.enthalpies.copy_from_slice(&next_field);

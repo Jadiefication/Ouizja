@@ -726,7 +726,7 @@ class SimulationTest {
                 globalMaterial(Material.STONE)
             }
         val result = sim.run(1)
-        println("[DEBUG_LOG] grid size: ${l}x${h}, result field size: ${result.field.size}x${result.field[0].size}")
+        println("[DEBUG_LOG] grid size: ${l}x$h, result field size: ${result.field.size}x${result.field[0].size}")
         assertEquals(l, result.field.size)
         assertEquals(h, result.field[0].size)
     }
@@ -818,7 +818,9 @@ class SimulationTest {
         val result1 = sim.run(100)
         val result2 = sim.run(200)
 
-        println("[DEBUG_LOG] initial temp: ${startResult.field[0][0]}, after 100: ${result1.field[0][0]}, after 200: ${result2.field[0][0]}")
+        println(
+            "[DEBUG_LOG] initial temp: ${startResult.field[0][0]}, after 100: ${result1.field[0][0]}, after 200: ${result2.field[0][0]}",
+        )
         assertTrue(result1.field[0][0] < startResult.field[0][0], "Should cool down")
         assertTrue(result2.field[0][0] < result1.field[0][0], "Should continue cooling down")
     }

@@ -15,6 +15,7 @@ class Simulation {
     internal var sourceMask = mutableListOf<Boolean>()
     internal var quantum = mutableListOf<Double>()
     internal val winds = mutableListOf<Double>()
+
     /**
      * The ambient temperature of the simulation in Kelvin.
      */

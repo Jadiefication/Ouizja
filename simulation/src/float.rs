@@ -46,8 +46,7 @@ impl ThermUtils for f64 {
             }
             if self >= h_sublimation_end {
                 return props.boiling_point.unwrap_or(0.0)
-                    + ((self - h_sublimation_end)
-                    / props.specific_heat_gas.unwrap_or(0.0).safe());
+                    + ((self - h_sublimation_end) / props.specific_heat_gas.unwrap_or(0.0).safe());
             }
         }
 
@@ -56,8 +55,7 @@ impl ThermUtils for f64 {
             Fusing => props.melting_point.unwrap_or(0.0),
             Liquid => {
                 let c_liquid = props.specific_heat_liquid.unwrap_or(0.0);
-                props.melting_point.unwrap_or(0.0)
-                    + ((self - milestones.h_fused) / c_liquid.safe())
+                props.melting_point.unwrap_or(0.0) + ((self - milestones.h_fused) / c_liquid.safe())
             }
             Vaporizing => props.boiling_point.unwrap_or(0.0),
             Gas => {

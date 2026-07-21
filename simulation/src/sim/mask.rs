@@ -41,7 +41,7 @@ impl Status {
             2 => Gas,
             3 => Fusing,
             4 => Vaporizing,
-            _ => panic!("Invalid ID {}!", id)
+            _ => panic!("Invalid ID {}!", id),
         }
     }
 }

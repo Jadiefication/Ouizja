@@ -36,6 +36,7 @@ enum class Material {
         override val type: Type = Type.GAS
         override val id: Int = 7
     },
+
     /**
      * A material that acts as a heat barrier (diffusivity = 0).
      */

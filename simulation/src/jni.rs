@@ -2,8 +2,8 @@ use crate::float::ThermUtils;
 use crate::sim::cells::cell::Cell;
 use crate::sim::cells::quantum::Quantum;
 use crate::sim::grid::Grid;
-use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::mask::Status;
+use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::material::Material;
 use crate::sim::material::Material::{Air, Water};
 use crate::sim::wind::Wind;
@@ -11,7 +11,7 @@ use haje::vec::vec2::Vec2;
 use jni::errors::{Error, ThrowRuntimeExAndDefault};
 use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObjectArray};
 use jni::sys::{jdouble, jint, jlong};
-use jni::{jni_sig, jni_str, EnvUnowned, JValue};
+use jni::{EnvUnowned, JValue, jni_sig, jni_str};
 
 /// JNI entry point to create a new simulation instance.
 /// Returns a raw pointer to the `Grid` object as a `jlong`.
@@ -74,10 +74,14 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 (None, &[][..])
             };
 
-            let alpha_mask = material_mask.iter().map(|&id| {
-                Material::find_by_id(id as u8).thermal_properties().diffusivity
-            }).collect();
-
+            let alpha_mask = material_mask
+                .iter()
+                .map(|&id| {
+                    Material::find_by_id(id as u8)
+                        .thermal_properties()
+                        .diffusivity
+                })
+                .collect();
 
             let (initial_enthalpies, cells): (Vec<f64>, Vec<u16>) = temperatures
                 .iter()
@@ -88,7 +92,11 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                     let props = material.thermal_properties();
 
                     let status = if let Some(mp) = props.melting_point {
-                        let bp = if props.volatile { props.boiling_point.unwrap_or(f64::MAX) } else { f64::MAX };
+                        let bp = if props.volatile {
+                            props.boiling_point.unwrap_or(f64::MAX)
+                        } else {
+                            f64::MAX
+                        };
                         if temp < mp {
                             0 // Solid
                         } else if temp <= bp {
@@ -99,9 +107,9 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                     } else {
                         // Match Kotlin's default material type if temperature-based transition isn't defined
                         match material {
-                            Air => 2, // Gas
+                            Air => 2,   // Gas
                             Water => 1, // Liquid
-                            _ => 0, // Solid
+                            _ => 0,     // Solid
                         }
                     };
 
@@ -143,7 +151,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 quantum,
                 cells,
                 actual_winds,
-                (length as usize, height as usize, tAmbient)
+                (length as usize, height as usize, tAmbient),
             );
             let g_box = Box::new(grid);
 
@@ -192,8 +200,12 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                 JObjectArray::<JObject>::null(),
             )?;
 
-            for ((i, row_slice), metadata_slice) in grid.enthalpies.chunks_exact(height as usize).enumerate()
-                .zip(grid.metadata.chunks_exact(height as usize)) {
+            for ((i, row_slice), metadata_slice) in grid
+                .enthalpies
+                .chunks_exact(height as usize)
+                .enumerate()
+                .zip(grid.metadata.chunks_exact(height as usize))
+            {
                 let temp_slice: Vec<f64> = row_slice
                     .iter()
                     .zip(metadata_slice)
