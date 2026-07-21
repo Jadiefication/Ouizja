@@ -1,8 +1,9 @@
-use crate::sim::cell::cell::Cell;
-use crate::sim::cell::quantum::Quantum;
+use crate::float::ThermUtils;
+use crate::sim::cells::cell::Cell;
+use crate::sim::cells::quantum::Quantum;
 use crate::sim::grid::Grid;
 use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
-use crate::sim::mask::{Mask, Status};
+use crate::sim::mask::Status;
 use crate::sim::material::Material;
 use crate::sim::material::Material::{Air, Water};
 use crate::sim::wind::Wind;
@@ -10,11 +11,12 @@ use haje::vec::vec2::Vec2;
 use jni::errors::{Error, ThrowRuntimeExAndDefault};
 use jni::objects::{JBooleanArray, JClass, JDoubleArray, JIntArray, JObject, JObjectArray};
 use jni::sys::{jdouble, jint, jlong};
-use jni::{EnvUnowned, JValue, jni_sig, jni_str};
-use crate::float::ThermUtils;
+use jni::{jni_sig, jni_str, EnvUnowned, JValue};
 
 /// JNI entry point to create a new simulation instance.
 /// Returns a raw pointer to the `Grid` object as a `jlong`.
+/// # Safety
+/// Because of this being an FFI function, this function is safe
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
@@ -55,14 +57,14 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 (&[][..], &[][..])
             };
             let actual_winds: Vec<Wind> = w_chunks
-                .into_iter()
+                .iter()
                 .map(|it| Wind {
                     force: Vec2 { x: it[0], y: it[1] },
                     temp: it[2],
                 })
                 .collect();
 
-            let (q_chunks, q_remainder) = if q_len > 0 {
+            let (q_chunks, _q_remainder) = if q_len > 0 {
                 let (chunks, remainder) = quantum_mask.as_chunks::<4>();
                 if !remainder.is_empty() {
                     panic!("Remainder of quantum isn't 4^N")
@@ -140,20 +142,20 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 quantum_indices,
                 quantum,
                 cells,
-                length as usize,
-                height as usize,
                 actual_winds,
-                tAmbient
+                (length as usize, height as usize, tAmbient)
             );
             let g_box = Box::new(grid);
 
-            return Ok::<i64, Error>(Box::into_raw(g_box) as i64);
+            Ok::<i64, Error>(Box::into_raw(g_box) as i64)
         })
         .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 /// JNI entry point to run the simulation for a specified number of iterations.
 /// Returns a `SimState` object containing the results.
+/// # Safety
+/// Because of this being an FFI function, this function is safe
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
@@ -190,7 +192,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                 JObjectArray::<JObject>::null(),
             )?;
 
-            for (((i, row_slice)), metadata_slice) in grid.enthalpies.chunks_exact(height as usize).enumerate()
+            for ((i, row_slice), metadata_slice) in grid.enthalpies.chunks_exact(height as usize).enumerate()
                 .zip(grid.metadata.chunks_exact(height as usize)) {
                 let temp_slice: Vec<f64> = row_slice
                     .iter()
@@ -209,13 +211,12 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
 
                 for (j, metadata) in metadata_slice.iter().enumerate() {
                     let status = Status::find_by_id(((metadata >> 1) & 0x07) as u8);
-                    let material = Material::find_by_id(((metadata >> 4) & 0x1F) as u8);
                     let status_u8 = match status {
                         Solid => 0,
                         Liquid => 1,
                         Gas => 2,
-                        Fusing { .. } => 3,
-                        Vaporizing { .. } => 4,
+                        Fusing => 3,
+                        Vaporizing => 4,
                     };
 
                     let value = env
@@ -288,12 +289,14 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
                 ],
             )?;
 
-            return Ok(object);
+            Ok(object)
         })
         .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 /// JNI entry point to free the memory allocated for the simulation instance.
+/// # Safety
+/// Because of this being an FFI function, this function is safe
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_freeSim(
     _env_unowned: EnvUnowned,

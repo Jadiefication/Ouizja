@@ -1,6 +1,10 @@
-use crate::sim::cell::cell::Cell;
-use crate::sim::cell::quantum::Quantum;
-use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
+use crate::float::ThermUtils;
+use crate::sim::cells::cell::Cell;
+use crate::sim::cells::quantum::Quantum;
+use crate::sim::cells::therms::EnthalpyMilestones;
+use crate::sim::mask::Status;
+use crate::sim::mask::Status::Solid;
+use crate::sim::material::Material;
 use crate::sim::material::Material::{Air, Barrier, Water};
 use crate::sim::wind::Wind;
 use haje::vec::vec2::Vec2;
@@ -8,10 +12,6 @@ use rayon::iter::IndexedParallelIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::{IntoParallelRefIterator, ParallelSlice, ParallelSliceMut};
 use std::cmp::Ordering::Equal;
-use crate::float::ThermUtils;
-use crate::sim::cell::therms::EnthalpyMilestones;
-use crate::sim::mask::Status;
-use crate::sim::material::Material;
 
 /// The main simulation grid containing all cells and global properties.
 pub struct Grid {
@@ -48,11 +48,13 @@ impl Grid {
         quantum_indices: Vec<isize>,
         quantum: Vec<Quantum>,
         metadata: Vec<u16>,
-        length: usize,
-        height: usize,
         winds: Vec<Wind>,
-        t_ambient: f64,
+        grid_info: (usize, usize, f64)
     ) -> Self {
+        let length = grid_info.0;
+        let height = grid_info.1;
+        let t_ambient = grid_info.2;
+
         Self {
             length,
             height,
@@ -94,7 +96,7 @@ impl Grid {
             0.0
         };
 
-        for n in 0..iterations {
+        for _ in 0..iterations {
             let v_max = self
                 .enthalpies
                 .par_iter()
@@ -122,8 +124,7 @@ impl Grid {
                         0.0
                     };
 
-                    let row_v = (buoyancy_wind + global_wind.y).abs() + global_wind.x.abs();
-                    row_v
+                    (buoyancy_wind + global_wind.y).abs() + global_wind.x.abs()
                 })
                 .max_by(|a, b| a.partial_cmp(b).unwrap_or(Equal))
                 .unwrap_or(0.0);
@@ -298,15 +299,15 @@ impl Grid {
                 .iter_mut()
                 .zip(&self.enthalpies)
                 .zip(&self.metadata)
-                .for_each(|((&mut mut i, enthalpy), metadata)| {
-                    if i != -1 {
+                .for_each(|((i, enthalpy), metadata)| {
+                    if *i != -1 {
                         let status = Status::find_by_id(((metadata >> 1) & 0x07) as u8);
                         let material = Material::find_by_id(((metadata >> 4) & 0x1F) as u8);
-                        let mut quantum = &mut self.quantum[i as usize];
+                        let quantum = &mut self.quantum[*i as usize];
                         let center_val = enthalpy.get_temp(material, &status);
                         let new_gamma = quantum.get_next(center_val, delta_t);
                         if new_gamma <= 0.0 {
-                            i = -1
+                            *i = -1
                         } else {
                             quantum.gamma = new_gamma;
                         }

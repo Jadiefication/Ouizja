@@ -1,5 +1,5 @@
 use crate::float::ThermUtils;
-use crate::sim::cell::therms::{EnthalpyMilestones, ThermalProperties};
+use crate::sim::cells::therms::{EnthalpyMilestones, ThermalProperties};
 use crate::sim::mask::Mask;
 use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::material::Material::{Air, Water};
@@ -7,17 +7,17 @@ use crate::sim::material::Material::{Air, Water};
 pub const HEAT_TRANSFER_C: f64 = 5.0;
 pub const STEFANS_C: f64 = 5.670e-8;
 
-/// Represents a single cell in the simulation grid.
+/// Represents a single cells in the simulation grid.
 #[derive(Clone, Copy)]
 pub struct Cell {
-    /// Physical and material properties of the cell.
+    /// Physical and material properties of the cells.
     pub mask: Mask,
-    /// Current enthalpy (heat energy) of the cell.
+    /// Current enthalpy (heat energy) of the cells.
     pub enthalpy: f64,
 }
 
 impl Cell {
-    /// Updates the physical state of the cell based on its current enthalpy.
+    /// Updates the physical state of the cells based on its current enthalpy.
     /// Returns the new temperature.
     pub fn update_state_from_enthalpy(&mut self) -> f64 {
         let props = self.mask.material.thermal_properties();
@@ -46,7 +46,6 @@ impl Cell {
             let h_sublimation_end = milestones.h_melting + total_sublimation_latent;
 
             return if self.enthalpy < h_sublimation_end {
-                let current_latent = self.enthalpy - milestones.h_melting;
                 self.mask.status = Vaporizing;
                 props.melting_point.unwrap_or(0.0)
             } else {
@@ -62,7 +61,6 @@ impl Cell {
         }
 
         if self.enthalpy < milestones.h_fused {
-            let current_latent = self.enthalpy - milestones.h_melting;
             self.mask.status = Fusing;
             return props.melting_point.unwrap_or(0.0);
         }
@@ -75,7 +73,6 @@ impl Cell {
         }
 
         if self.enthalpy < milestones.h_vaporized {
-            let current_latent = self.enthalpy - milestones.h_boiling;
             self.mask.status = Vaporizing;
             return props.boiling_point.unwrap_or(0.0);
         }
@@ -86,7 +83,7 @@ impl Cell {
             + (excess_energy / props.specific_heat_gas.unwrap_or(1.0).safe())
     }
 
-    /// Calculates the temperature of the cell based on its enthalpy and material properties.
+    /// Calculates the temperature of the cells based on its enthalpy and material properties.
     pub fn get_temperature(&self) -> f64 {
         let props = self.mask.material.thermal_properties();
         if !props.volatile {
@@ -116,13 +113,13 @@ impl Cell {
 
         match self.mask.status {
             Solid => self.enthalpy / props.specific_heat_solid.safe(),
-            Fusing { .. } => props.melting_point.unwrap_or(0.0),
+            Fusing => props.melting_point.unwrap_or(0.0),
             Liquid => {
                 let c_liquid = props.specific_heat_liquid.unwrap_or(0.0);
                 props.melting_point.unwrap_or(0.0)
                     + ((self.enthalpy - milestones.h_fused) / c_liquid.safe())
             }
-            Vaporizing { .. } => props.boiling_point.unwrap_or(0.0),
+            Vaporizing => props.boiling_point.unwrap_or(0.0),
             Gas => {
                 let c_gas = props.specific_heat_gas.unwrap_or(0.0);
                 props.boiling_point.unwrap_or(0.0)
@@ -131,7 +128,7 @@ impl Cell {
         }
     }
 
-    /// Returns the specific heat capacity of the cell in its current state.
+    /// Returns the specific heat capacity of the cells in its current state.
     pub fn get_capacity(&self) -> f64 {
         let props = self.mask.material.thermal_properties();
         match self.mask.status {
@@ -141,8 +138,8 @@ impl Cell {
                 .unwrap_or(props.specific_heat_solid),
             Gas => props.specific_heat_gas.unwrap_or(props.specific_heat_solid),
 
-            Fusing { .. } => props.specific_heat_solid,
-            Vaporizing { .. } => props
+            Fusing => props.specific_heat_solid,
+            Vaporizing => props
                 .specific_heat_liquid
                 .unwrap_or(props.specific_heat_solid),
         }

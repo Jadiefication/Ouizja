@@ -1,4 +1,4 @@
-pub mod cell;
+pub mod cells;
 pub mod grid;
 pub mod mask;
 pub mod material;

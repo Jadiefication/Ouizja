@@ -1,4 +1,4 @@
-use crate::sim::cell::therms::ThermalProperties;
+use crate::sim::cells::therms::ThermalProperties;
 use crate::sim::material::Material::{
     Air, Aluminum, Barrier, Copper, Glass, Iron, Stone, Water, Wood,
 };

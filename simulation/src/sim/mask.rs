@@ -1,4 +1,4 @@
-use crate::sim::cell::quantum::Quantum;
+use crate::sim::cells::quantum::Quantum;
 use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::material::Material;
 

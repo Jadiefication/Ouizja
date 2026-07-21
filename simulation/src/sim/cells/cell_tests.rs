@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::sim::cell::cell::Cell;
+    use crate::sim::cells::cell::Cell;
     use crate::sim::mask::{Mask, Status};
     use crate::sim::material::Material;
     use proptest::prelude::*;

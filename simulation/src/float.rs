@@ -1,5 +1,5 @@
-use crate::sim::cell::cell::{HEAT_TRANSFER_C, STEFANS_C};
-use crate::sim::cell::therms::EnthalpyMilestones;
+use crate::sim::cells::cell::{HEAT_TRANSFER_C, STEFANS_C};
+use crate::sim::cells::therms::EnthalpyMilestones;
 use crate::sim::mask::Status;
 use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::material::Material;
@@ -53,13 +53,13 @@ impl ThermUtils for f64 {
 
         match status {
             Solid => self / props.specific_heat_solid.safe(),
-            Fusing { .. } => props.melting_point.unwrap_or(0.0),
+            Fusing => props.melting_point.unwrap_or(0.0),
             Liquid => {
                 let c_liquid = props.specific_heat_liquid.unwrap_or(0.0);
                 props.melting_point.unwrap_or(0.0)
                     + ((self - milestones.h_fused) / c_liquid.safe())
             }
-            Vaporizing { .. } => props.boiling_point.unwrap_or(0.0),
+            Vaporizing => props.boiling_point.unwrap_or(0.0),
             Gas => {
                 let c_gas = props.specific_heat_gas.unwrap_or(0.0);
                 props.boiling_point.unwrap_or(0.0)
