@@ -1,9 +1,11 @@
-use crate::sim::cells::cell::{HEAT_TRANSFER_C, STEFANS_C};
-use crate::sim::cells::therms::EnthalpyMilestones;
+use crate::sim::cells::therms::{EnthalpyMilestones, ThermalProperties};
 use crate::sim::mask::Status;
 use crate::sim::mask::Status::{Fusing, Gas, Liquid, Solid, Vaporizing};
 use crate::sim::material::Material;
 use crate::sim::material::Material::{Air, Water};
+
+pub const HEAT_TRANSFER_C: f64 = 5.0;
+pub const STEFANS_C: f64 = 5.670e-8;
 
 /// Utility trait for safe division, avoiding division by zero.
 pub trait ThermUtils {
@@ -13,10 +15,46 @@ pub trait ThermUtils {
     fn get_temp(self, material: Material, status: &Status) -> Self;
     /// Returns the specific heat capacity of the cell in its current state.
     fn get_capacity(&self, material: Material, status: &Status) -> f64;
+
     /// Calculates the heat loss due to convective cooling (Newton's law of cooling).
-    fn newton_cooling(d_t: f64, d_temp: f64) -> f64;
+    fn newton_cooling(d_t: f64, d_temp: f64) -> f64 {
+        HEAT_TRANSFER_C * d_t * d_temp
+    }
+
     /// Calculates the heat loss due to radiation in a vacuum (Stefan-Boltzmann law).
-    fn vacuum_radiation(material: Material, temp: f64, d_t: f64) -> f64;
+    fn vacuum_radiation(material: Material, temp: f64, d_t: f64, t_amb_fourth: f64) -> f64 {
+        material.thermal_properties().emissivity * STEFANS_C * (temp.powi(4) - t_amb_fourth) * d_t
+    }
+
+    /// Calculates the enthalpy for a given temperature and material properties.
+    fn calculate_forward_enthalpy(t: f64, props: &ThermalProperties) -> f64 {
+        let t_melt = props.melting_point.unwrap_or(f64::MAX);
+        let t_boil = props.boiling_point.unwrap_or(f64::MAX);
+
+        if t < t_melt {
+            return props.specific_heat_solid * t;
+        }
+
+        let h_at_melting = props.specific_heat_solid * t_melt;
+        let h_fused = h_at_melting + props.latent_fusion.unwrap_or(0.0);
+
+        if t < t_boil {
+            let c_liquid = props
+                .specific_heat_liquid
+                .unwrap_or(props.specific_heat_solid);
+            return h_fused + (c_liquid * (t - t_melt));
+        }
+
+        let delta_t_liquid = (t_boil - t_melt).max(0.0);
+        let c_liquid = props
+            .specific_heat_liquid
+            .unwrap_or(props.specific_heat_solid);
+        let h_at_boiling = h_fused + (c_liquid * delta_t_liquid);
+        let h_vaporized = h_at_boiling + props.latent_vaporization.unwrap_or(0.0);
+
+        let c_gas = props.specific_heat_gas.unwrap_or(props.specific_heat_solid);
+        h_vaporized + (c_gas * (t - t_boil))
+    }
 }
 
 impl ThermUtils for f64 {
@@ -81,15 +119,5 @@ impl ThermUtils for f64 {
                 .specific_heat_liquid
                 .unwrap_or(props.specific_heat_solid),
         }
-    }
-
-    /// Calculates the heat loss due to convective cooling (Newton's law of cooling).
-    fn newton_cooling(d_t: f64, d_temp: f64) -> f64 {
-        HEAT_TRANSFER_C * d_t * d_temp
-    }
-
-    /// Calculates the heat loss due to radiation in a vacuum (Stefan-Boltzmann law).
-    fn vacuum_radiation(material: Material, temp: f64, d_t: f64) -> f64 {
-        material.thermal_properties().emissivity * STEFANS_C * temp.powi(4) * d_t
     }
 }

@@ -1,5 +1,4 @@
 use crate::float::ThermUtils;
-use crate::sim::cells::cell::Cell;
 use crate::sim::cells::quantum::Quantum;
 use crate::sim::grid::Grid;
 use crate::sim::mask::Status;
@@ -113,7 +112,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                         }
                     };
 
-                    let initial_enthalpy = Cell::calculate_forward_enthalpy(temp, &props);
+                    let initial_enthalpy = f64::calculate_forward_enthalpy(temp, &props);
 
                     let mut base: u16 = 0;
                     if source {

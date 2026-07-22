@@ -1,5 +1,4 @@
 use crate::float::ThermUtils;
-use crate::sim::cells::cell::Cell;
 use crate::sim::cells::quantum::Quantum;
 use crate::sim::cells::therms::EnthalpyMilestones;
 use crate::sim::mask::Status;
@@ -38,9 +37,11 @@ pub struct Grid {
     winds: Vec<Wind>,
     /// Ambient temperature of the environment.
     t_ambient: f64,
+    t_ambient_fourth: f64
 }
 
 impl Grid {
+
     /// Creates a new simulation grid.
     pub fn new(
         enthalpies: Vec<f64>,
@@ -54,6 +55,7 @@ impl Grid {
         let length = grid_info.0;
         let height = grid_info.1;
         let t_ambient = grid_info.2;
+        let t_ambient_fourth = t_ambient.powi(4);
 
         Self {
             length,
@@ -65,6 +67,7 @@ impl Grid {
             metadata,
             winds,
             t_ambient,
+            t_ambient_fourth
         }
     }
 
@@ -241,9 +244,9 @@ impl Grid {
 
                             let safe_temp = center_val.max(0.0);
 
-                            let dq_rad = f64::vacuum_radiation(material, safe_temp, delta_t);
+                            let dq_rad = f64::vacuum_radiation(material, safe_temp, delta_t, self.t_ambient_fourth);
                             let dq_newton =
-                                Cell::newton_cooling(delta_t, safe_temp - self.t_ambient);
+                                f64::newton_cooling(delta_t, safe_temp - self.t_ambient);
 
                             let mut new_enthalpy =
                                 self.enthalpies[i * self.height + j] + dq - dq_rad - dq_newton;
