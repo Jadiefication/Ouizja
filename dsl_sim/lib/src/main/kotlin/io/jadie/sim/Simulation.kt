@@ -50,21 +50,17 @@ class Simulation {
         toY: Int,
     ) {
         if (materialMask.size != length * height) {
-            materialMask =
-                MutableList(length * height) { index ->
-                    val x = index / height
-                    val y = index % height
-                    if (x in fromX..toX && y in fromY..toY) {
-                        material
-                    } else {
-                        Material.BARRIER
-                    }
-                }
-        } else {
-            for (index in materialMask.indices) {
-                val x = index / height
-                val y = index % height
-                if (x in fromX..toX && y in fromY..toY) {
+            materialMask = MutableList(length * height) { Material.BARRIER }
+        }
+        val minX = if (fromX < toX) fromX else toX
+        val maxX = if (fromX < toX) toX else fromX
+        val minY = if (fromY < toY) fromY else toY
+        val maxY = if (fromY < toY) toY else fromY
+
+        for (x in minX..maxX) {
+            for (y in minY..maxY) {
+                if (x in 0 until length && y in 0 until height) {
+                    val index = x * height + y
                     materialMask[index] = material
                 }
             }
@@ -87,21 +83,11 @@ class Simulation {
         y: Int,
     ) {
         if (temps.size != length * height) {
-            temps =
-                MutableList(length * height) { index ->
-                    val xIndex = index / height
-                    val yIndex = index % height
-                    if (xIndex == x && yIndex == y) {
-                        temp
-                    } else {
-                        0.0
-                    }
-                }
-        } else {
-            val index = x * height + y
-            if (index in temps.indices) {
-                temps[index] = temp
-            }
+            temps = MutableList(length * height) { 0.0 }
+        }
+        val index = x * height + y
+        if (index in temps.indices) {
+            temps[index] = temp
         }
     }
 
@@ -116,21 +102,17 @@ class Simulation {
         toY: Int,
     ) {
         if (temps.size != length * height) {
-            temps =
-                MutableList(length * height) { index ->
-                    val x = index / height
-                    val y = index % height
-                    if (x in fromX..toX && y in fromY..toY) {
-                        temp
-                    } else {
-                        0.0
-                    }
-                }
-        } else {
-            for (index in temps.indices) {
-                val x = index / height
-                val y = index % height
-                if (x in fromX..toX && y in fromY..toY) {
+            temps = MutableList(length * height) { 0.0 }
+        }
+        val minX = if (fromX < toX) fromX else toX
+        val maxX = if (fromX < toX) toX else fromX
+        val minY = if (fromY < toY) fromY else toY
+        val maxY = if (fromY < toY) toY else fromY
+
+        for (x in minX..maxX) {
+            for (y in minY..maxY) {
+                if (x in 0 until length && y in 0 until height) {
+                    val index = x * height + y
                     temps[index] = temp
                 }
             }
@@ -157,17 +139,11 @@ class Simulation {
         y: Int,
     ) {
         if (sourceMask.size != length * height) {
-            sourceMask =
-                MutableList(length * height) { index ->
-                    val xIndex = index / height
-                    val yIndex = index % height
-                    xIndex == x && yIndex == y
-                }
-        } else {
-            val index = x * height + y
-            if (index in sourceMask.indices) {
-                sourceMask[index] = true
-            }
+            sourceMask = MutableList(length * height) { false }
+        }
+        val index = x * height + y
+        if (index in sourceMask.indices) {
+            sourceMask[index] = true
         }
     }
 
@@ -207,31 +183,17 @@ class Simulation {
     ) {
         val r_2 = radius * radius
         if (sourceMask.size != length * height) {
-            sourceMask =
-                MutableList(length * height) { index ->
-                    val xIndex = index / height
-                    val yIndex = index % height
+            sourceMask = MutableList(length * height) { false }
+        }
+        for (index in sourceMask.indices) {
+            val xIndex = index / height
+            val yIndex = index % height
 
-                    val d_x = (xIndex + 0.5) - centerX
-                    val d_y = (yIndex + 0.5) - centerY
+            val d_x = (xIndex + 0.5) - centerX
+            val d_y = (yIndex + 0.5) - centerY
 
-                    if (d_x * d_x + d_y * d_y <= r_2) {
-                        source
-                    } else {
-                        !source
-                    }
-                }
-        } else {
-            for (index in sourceMask.indices) {
-                val xIndex = index / height
-                val yIndex = index % height
-
-                val d_x = (xIndex + 0.5) - centerX
-                val d_y = (yIndex + 0.5) - centerY
-
-                if (d_x * d_x + d_y * d_y <= r_2) {
-                    sourceMask[index] = source
-                }
+            if (d_x * d_x + d_y * d_y <= r_2) {
+                sourceMask[index] = source
             }
         }
     }
@@ -244,31 +206,17 @@ class Simulation {
     ) {
         val r_2 = radius * radius
         if (temps.size != length * height) {
-            temps =
-                MutableList(length * height) { index ->
-                    val xIndex = index / height
-                    val yIndex = index % height
+            temps = MutableList(length * height) { 0.0 }
+        }
+        for (index in temps.indices) {
+            val xIndex = index / height
+            val yIndex = index % height
 
-                    val d_x = (xIndex + 0.5) - centerX
-                    val d_y = (yIndex + 0.5) - centerY
+            val d_x = (xIndex + 0.5) - centerX
+            val d_y = (yIndex + 0.5) - centerY
 
-                    if (d_x * d_x + d_y * d_y <= r_2) {
-                        temp
-                    } else {
-                        0.0
-                    }
-                }
-        } else {
-            for (index in temps.indices) {
-                val xIndex = index / height
-                val yIndex = index % height
-
-                val d_x = (xIndex + 0.5) - centerX
-                val d_y = (yIndex + 0.5) - centerY
-
-                if (d_x * d_x + d_y * d_y <= r_2) {
-                    temps[index] = temp
-                }
+            if (d_x * d_x + d_y * d_y <= r_2) {
+                temps[index] = temp
             }
         }
     }
@@ -284,31 +232,17 @@ class Simulation {
     ) {
         val r_2 = radius * radius
         if (materialMask.size != length * height) {
-            materialMask =
-                MutableList(length * height) { index ->
-                    val xIndex = index / height
-                    val yIndex = index % height
+            materialMask = MutableList(length * height) { Material.BARRIER }
+        }
+        for (index in materialMask.indices) {
+            val xIndex = index / height
+            val yIndex = index % height
 
-                    val d_x = (xIndex + 0.5) - centerX
-                    val d_y = (yIndex + 0.5) - centerY
+            val d_x = (xIndex + 0.5) - centerX
+            val d_y = (yIndex + 0.5) - centerY
 
-                    if (d_x * d_x + d_y * d_y <= r_2) {
-                        material
-                    } else {
-                        Material.BARRIER
-                    }
-                }
-        } else {
-            for (index in materialMask.indices) {
-                val xIndex = index / height
-                val yIndex = index % height
-
-                val d_x = (xIndex + 0.5) - centerX
-                val d_y = (yIndex + 0.5) - centerY
-
-                if (d_x * d_x + d_y * d_y <= r_2) {
-                    materialMask[index] = material
-                }
+            if (d_x * d_x + d_y * d_y <= r_2) {
+                materialMask[index] = material
             }
         }
     }
@@ -459,7 +393,7 @@ data class BuiltSim(
 fun simulate(builder: Simulation.() -> Unit): BuiltSim {
     val simulation = Simulation()
     simulation.builder()
-    val targetSize = simulation.size()
+    val targetSize = simulation.length * simulation.height
     if (simulation.sourceMask.size != targetSize) {
         val oldMask = simulation.sourceMask
         simulation.sourceMask =
@@ -489,7 +423,7 @@ fun simulate(builder: Simulation.() -> Unit): BuiltSim {
                 if (index < oldMask.size) {
                     oldMask[index]
                 } else {
-                    0.0
+                    simulation.ambient
                 }
             }
     }
@@ -540,7 +474,7 @@ fun transform(
     for (x in 0..<oldState.length) {
         for (y in 0..<oldState.height) {
             val i = x * oldState.height + y
-            val value = newState.field[y][x]
+            val value = newState.field[x][y]
             newField[i] = value
         }
     }
