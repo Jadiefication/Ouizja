@@ -8,13 +8,13 @@ import org.spongepowered.noise.module.NoiseModule
  * DSL class for configuring a simulation.
  */
 class Simulation {
-    internal var length = 256
-    internal var height = 256
-    internal var materialMask = mutableListOf<Material>()
-    internal var temps = mutableListOf<Double>()
-    internal var sourceMask = mutableListOf<Boolean>()
-    internal var quantum = mutableListOf<Double>()
-    internal val winds = mutableListOf<Double>()
+    var length = 256
+    var height = 256
+    var materialMask = mutableListOf<Material>()
+    var temps = mutableListOf<Double>()
+    var sourceMask = mutableListOf<Boolean>()
+    var quantum = mutableListOf<Double>()
+    val winds = mutableListOf<Double>()
 
     /**
      * The ambient temperature of the simulation in Kelvin.
@@ -234,31 +234,18 @@ class Simulation {
                 }
             }
         }
+    }
 
-        fun circle(
-            centerX: Int,
-            centerY: Int,
-            radius: Int,
-            temp: Double,
-        ) {
-            val r_2 = radius * radius
-            if (temps.size != length * height) {
-                temps =
-                    MutableList(length * height) { index ->
-                        val xIndex = index / height
-                        val yIndex = index % height
-
-                        val d_x = (xIndex + 0.5) - centerX
-                        val d_y = (yIndex + 0.5) - centerY
-
-                        if (d_x * d_x + d_y * d_y <= r_2) {
-                            temp
-                        } else {
-                            0.0
-                        }
-                    }
-            } else {
-                for (index in temps.indices) {
+    fun circle(
+        centerX: Int,
+        centerY: Int,
+        radius: Int,
+        temp: Double,
+    ) {
+        val r_2 = radius * radius
+        if (temps.size != length * height) {
+            temps =
+                MutableList(length * height) { index ->
                     val xIndex = index / height
                     val yIndex = index % height
 
@@ -266,8 +253,21 @@ class Simulation {
                     val d_y = (yIndex + 0.5) - centerY
 
                     if (d_x * d_x + d_y * d_y <= r_2) {
-                        temps[index] = temp
+                        temp
+                    } else {
+                        0.0
                     }
+                }
+        } else {
+            for (index in temps.indices) {
+                val xIndex = index / height
+                val yIndex = index % height
+
+                val d_x = (xIndex + 0.5) - centerX
+                val d_y = (yIndex + 0.5) - centerY
+
+                if (d_x * d_x + d_y * d_y <= r_2) {
+                    temps[index] = temp
                 }
             }
         }
@@ -358,14 +358,14 @@ class Simulation {
  * A built and ready-to-run simulation instance.
  */
 data class BuiltSim(
-    internal val height: Int,
-    internal val length: Int,
-    internal val sourceMask: BooleanArray,
-    internal val materialMask: IntArray,
-    internal var quantum: DoubleArray,
-    internal val winds: DoubleArray,
-    internal var temps: DoubleArray,
-    internal val ambient: Double,
+    val height: Int,
+    val length: Int,
+    val sourceMask: BooleanArray,
+    val materialMask: IntArray,
+    var quantum: DoubleArray,
+    val winds: DoubleArray,
+    var temps: DoubleArray,
+    val ambient: Double,
 ) {
     /**
      * Runs the simulation for a specified number of iterations and returns the final state.
@@ -402,14 +402,14 @@ data class BuiltSim(
             if (predicate(state)) {
                 break
             } else {
-                val newField =
-                    buildList {
-                        state.field.forEach { arr ->
-                            arr.forEach { value ->
-                                this.add(value)
-                            }
-                        }
-                    }.toDoubleArray()
+                val newField = DoubleArray(length * height)
+                for (x in 0..<length) {
+                    for (y in 0..<height) {
+                        val i = x * height + y
+                        val value = state.field[y][x]
+                        newField[i] = value
+                    }
+                }
 
                 val newQuantum =
                     buildList {
@@ -536,14 +536,14 @@ fun transform(
     oldState: BuiltSim,
     newState: SimState,
 ): BuiltSim {
-    val newField =
-        buildList {
-            newState.field.forEach { arr ->
-                arr.forEach { value ->
-                    this.add(value)
-                }
-            }
-        }.toDoubleArray()
+    val newField = DoubleArray(oldState.length * oldState.height)
+    for (x in 0..<oldState.length) {
+        for (y in 0..<oldState.height) {
+            val i = x * oldState.height + y
+            val value = newState.field[y][x]
+            newField[i] = value
+        }
+    }
 
     val newQuantum =
         buildList {

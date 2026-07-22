@@ -2,11 +2,9 @@ package io.jadie
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -18,6 +16,28 @@ import androidx.compose.ui.unit.dp
 import io.jadie.sim.Material
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+data class SimSettings(
+    val width: Int = 50,
+    val height: Int = 50,
+    val globalTemp: Double = 20.0,
+    val globalMaterial: Material = Material.IRON,
+    val iterations: Int = 100,
+    val dslConfig: String =
+        """
+        simulation {
+            grid(50, 50)
+            globalMaterial(IRON)
+            globalTemperature(20.0)
+            temp(100.0, 25, 25)
+        }
+        """.trimIndent(),
+)
+
+expect fun runSimulation(
+    settings: SimSettings,
+    onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int) -> Unit,
+)
 
 @Composable
 @Preview
@@ -48,100 +68,80 @@ fun App() {
         }
     }
 
-    MaterialTheme {
+    val darkColorScheme =
+        darkColorScheme(
+            primary = Color(0xFFD0BCFF),
+            onPrimary = Color(0xFF381E72),
+            primaryContainer = Color(0xFF4F378B),
+            onPrimaryContainer = Color(0xFFEADDFF),
+            secondary = Color(0xFFCCC2DC),
+            onSecondary = Color(0xFF332D41),
+            background = Color(0xFF1C1B1F),
+            onBackground = Color(0xFFE6E1E5),
+            surface = Color(0xFF1C1B1F),
+            onSurface = Color(0xFFE6E1E5),
+        )
+
+    MaterialTheme(colorScheme = darkColorScheme) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier =
                         Modifier
-                            .width(250.dp)
+                            .width(350.dp)
                             .fillMaxHeight()
                             .padding(16.dp),
                 ) {
                     Text(
                         text = "Ouizja",
                         style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(text = "Iteration: $iteration")
+                    Text(text = "Iteration: $iteration", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { isRunning = !isRunning },
-                    ) {
-                        Text(if (isRunning) "Stop" else "Start")
-                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { isRunning = !isRunning },
+                        ) {
+                            Text(if (isRunning) "Stop" else "Start")
+                        }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { iteration = 0 },
-                    ) {
-                        Text("Reset")
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { iteration = 0 },
+                        ) {
+                            Text("Reset")
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "Settings", style = MaterialTheme.typography.titleSmall)
+                    Text(text = "DSL Configuration", style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = settings.dslConfig,
+                        onValueChange = { settings = settings.copy(dslConfig = it) },
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        textStyle =
+                            MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            ),
+                        label = { Text("Simulation DSL") },
+                    )
 
-                    OutlinedTextField(
-                        value = settings.width.toString(),
-                        onValueChange = { settings = settings.copy(width = it.toIntOrNull() ?: settings.width) },
-                        label = { Text("Width") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = settings.height.toString(),
-                        onValueChange = { settings = settings.copy(height = it.toIntOrNull() ?: settings.height) },
-                        label = { Text("Height") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = settings.globalTemp.toString(),
-                        onValueChange = { settings = settings.copy(globalTemp = it.toDoubleOrNull() ?: settings.globalTemp) },
-                        label = { Text("Global Temp") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Control", style = MaterialTheme.typography.titleSmall)
                     OutlinedTextField(
                         value = settings.iterations.toString(),
                         onValueChange = { settings = settings.copy(iterations = it.toIntOrNull() ?: settings.iterations) },
-                        label = { Text("Iterations") },
+                        label = { Text("Max Iterations") },
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Global Material", style = MaterialTheme.typography.titleSmall)
-
-                    var expanded by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(
-                            onClick = { expanded = true },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(settings.globalMaterial.name)
-                        }
-                        DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                        ) {
-                            Material.entries.forEach { material ->
-                                DropdownMenuItem(
-                                    text = { Text(material.name) },
-                                    onClick = {
-                                        settings = settings.copy(globalMaterial = material)
-                                        expanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.dividerSpacerHeight())
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.dividerSpacerHeight())
-
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(text = "View Mode", style = MaterialTheme.typography.titleSmall)
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         RadioButton(
@@ -149,8 +149,7 @@ fun App() {
                             onClick = { showMaterial = false },
                         )
                         Text("Temperature")
-                    }
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.width(16.dp))
                         RadioButton(
                             selected = showMaterial,
                             onClick = { showMaterial = true },
@@ -170,22 +169,28 @@ fun App() {
                         Box(modifier = Modifier.weight(1f)) {
                             if (showMaterial) {
                                 MaterialGrid(materialData) { r, c ->
-                                    hoverInfo = Triple(c, r, gridData[r][c])
+                                    hoverInfo = Triple(c, r, (gridData.getOrNull(r)?.getOrNull(c) ?: 0.0))
                                 }
                             } else {
                                 SimulationGrid(gridData) { r, c ->
-                                    hoverInfo = Triple(c, r, gridData[r][c])
+                                    hoverInfo = Triple(c, r, (gridData.getOrNull(r)?.getOrNull(c) ?: 0.0))
                                 }
                             }
                         }
 
                         hoverInfo?.let { (x, y, temp) ->
-                            val mat = materialData[y][x]
-                            Text(
-                                text = "X: $x, Y: $y | Temp: ${temp.format(2)}°C | Material: $mat",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
+                            val mat = materialData.getOrNull(y)?.getOrNull(x) ?: Material.BARRIER
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = "X: $x, Y: $y | Temp: ${temp.format(2)}°C | Material: $mat",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(8.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -196,7 +201,7 @@ fun App() {
 
 private fun Modifier.dividerSpacerHeight() = this.height(16.dp)
 
-fun Double.format(digits: Int) = this.toString() // Placeholder for multiplatform formatting
+fun Double.format(digits: Int) = this.toString()
 
 @Composable
 fun MaterialGrid(
@@ -316,16 +321,3 @@ fun temperatureToColor(temp: Double): Color {
         alpha = 1f,
     )
 }
-
-data class SimSettings(
-    val width: Int = 50,
-    val height: Int = 50,
-    val globalTemp: Double = 20.0,
-    val globalMaterial: Material = Material.IRON,
-    val iterations: Int = 100,
-)
-
-expect fun runSimulation(
-    settings: SimSettings,
-    onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int) -> Unit,
-)
