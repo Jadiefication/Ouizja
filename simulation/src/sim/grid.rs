@@ -12,6 +12,8 @@ use rayon::iter::ParallelIterator;
 use rayon::prelude::{IntoParallelRefIterator, ParallelSlice, ParallelSliceMut};
 use std::cmp::Ordering::Equal;
 
+const T_SAFE: f64 = 0.001;
+
 /// The main simulation grid containing all cells and global properties.
 pub struct Grid {
     /// Width of the grid.
@@ -76,12 +78,7 @@ impl Grid {
     pub fn run(&mut self, iterations: usize) {
         let max_alpha = self.alpha_mask.iter().copied().fold(0.0f64, f64::max);
 
-        let max_dt_bound = 0.5;
-        let mut delta_t = if max_alpha > 0.0 {
-            (0.25 / max_alpha).min(max_dt_bound)
-        } else {
-            max_dt_bound
-        };
+        let delta_t = T_SAFE.min(1.0/4.0*max_alpha);
         let mut next_field = self.enthalpies.clone();
         let mut next_metadata = self.metadata.clone();
 
@@ -96,40 +93,6 @@ impl Grid {
         };
 
         for _ in 0..iterations {
-            let v_max = self
-                .enthalpies
-                .par_iter()
-                .enumerate()
-                .zip(&self.metadata)
-                .map(|((j, it), metadata)| {
-                    let status = Status::find_by_id(((metadata >> 1) & 0x07) as u8);
-                    let material = Material::find_by_id(((metadata >> 4) & 0x1F) as u8);
-                    let row = j % self.height;
-
-                    let center_val = it.get_temp(material, &status);
-
-                    let down_j = if row == 0 { 0 } else { row - 1 };
-                    let down_index = (j / self.height) * self.height + down_j;
-                    let down_m = self.metadata[down_index];
-
-                    let d_status = Status::find_by_id(((down_m >> 1) & 0x07) as u8);
-                    let d_material = Material::find_by_id(((down_m >> 4) & 0x1F) as u8);
-
-                    let down_val = self.enthalpies[down_index].get_temp(d_material, &d_status);
-
-                    let buoyancy_wind = if down_val > center_val {
-                        (down_val - center_val) * 1.0
-                    } else {
-                        0.0
-                    };
-
-                    (buoyancy_wind + global_wind.y).abs() + global_wind.x.abs()
-                })
-                .max_by(|a, b| a.partial_cmp(b).unwrap_or(Equal))
-                .unwrap_or(0.0);
-
-            delta_t = delta_t.min(1.0 / v_max.max(1.0));
-
             next_field
                 .par_chunks_exact_mut(self.height)
                 .zip(next_metadata.par_chunks_exact_mut(self.height))
