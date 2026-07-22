@@ -9,25 +9,7 @@ actual fun runSimulation(
     onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int) -> Unit,
 ) {
     val parser = DslParser()
-    val simulationBuilder = parser.parse(settings.dslConfig)
-
-    val builtSim =
-        simulate {
-            grid(simulationBuilder.length, simulationBuilder.height)
-            ambient(simulationBuilder.ambient)
-
-            // Transfer internal masks if they were set
-            if (simulationBuilder.materialMask.isNotEmpty()) {
-                this.materialMask = simulationBuilder.materialMask
-            }
-            if (simulationBuilder.temps.isNotEmpty()) {
-                this.temps = simulationBuilder.temps
-            }
-            if (simulationBuilder.sourceMask.isNotEmpty()) {
-                this.sourceMask = simulationBuilder.sourceMask
-            }
-        }
-
+    val builtSim = parser.parse(settings.dslConfig)
     val width = builtSim.length
     val height = builtSim.height
     val materialsFlat = builtSim.toMaterialArray()
@@ -38,8 +20,8 @@ actual fun runSimulation(
             }
         }
 
-    for (i in 0..settings.iterations) {
-        val state = builtSim.run(1)
-        onUpdate(state.field, materials, i)
+    builtSim.run(settings.iterations.toLong()) { it, i ->
+        onUpdate(it.field, materials, i.toInt())
+        false
     }
 }

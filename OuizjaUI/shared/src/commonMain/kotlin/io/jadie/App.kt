@@ -27,7 +27,7 @@ data class SimSettings(
         """
         simulation {
             grid(50, 50)
-            globalMaterial(IRON)
+            globalMaterial(Material.IRON)
             globalTemperature(20.0)
             temp(100.0, 25, 25)
         }

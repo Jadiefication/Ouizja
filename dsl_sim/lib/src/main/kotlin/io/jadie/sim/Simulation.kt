@@ -168,8 +168,9 @@ class Simulation {
         y: Int,
         kappa: Double,
         index: Int,
+        gamma: Double = 1.0
     ) {
-        quantum.addAll(listOf(x.toDouble(), y.toDouble(), kappa, index.toDouble()))
+        quantum.addAll(listOf(x.toDouble(), y.toDouble(), kappa, index.toDouble(), gamma))
     }
 
     /**
@@ -328,27 +329,33 @@ data class BuiltSim(
      */
     fun run(
         iterations: Long,
-        predicate: (SimState) -> Boolean,
+        predicate: (SimState, Long) -> Boolean,
     ) {
-        for (i in 0..iterations) {
+        for (i in 1..iterations) {
             val state = run(1)
 
-            if (predicate(state)) {
+            if (predicate(state, i)) {
                 break
             } else {
                 val newField = DoubleArray(length * height)
                 for (x in 0..<length) {
                     for (y in 0..<height) {
                         val i = x * height + y
-                        val value = state.field[y][x]
+                        val value = state.field[x][y]
                         newField[i] = value
                     }
                 }
 
                 val newQuantum =
                     buildList {
-                        state.quantum.forEach { value ->
-                            this.addAll(listOf(value.first.toDouble(), value.second.toDouble(), value.third))
+                        state.quantum.forEachIndexed { index, value ->
+                            this.addAll(listOf(
+                                value.first.toDouble(),
+                                value.second.toDouble(),
+                                this@BuiltSim.quantum[5 * index + 2],
+                                this@BuiltSim.quantum[5 * index + 3],
+                                value.third
+                            ))
                         }
                     }.toDoubleArray()
 

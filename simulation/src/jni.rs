@@ -64,9 +64,9 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                 .collect();
 
             let (q_chunks, _q_remainder) = if q_len > 0 {
-                let (chunks, remainder) = quantum_mask.as_chunks::<4>();
+                let (chunks, remainder) = quantum_mask.as_chunks::<5>();
                 if !remainder.is_empty() {
-                    panic!("Remainder of quantum isn't 4^N")
+                    panic!("Remainder of quantum isn't 5N")
                 }
                 (Some(chunks), remainder)
             } else {
@@ -134,7 +134,7 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
                     if x >= 0 && x < length && y >= 0 && y < height {
                         let i = (x * height + y) as usize;
                         quantum.push(Quantum {
-                            gamma: 1.0,
+                            gamma: it[4],
                             kappa: it[2],
                             index: it[3] as i32,
                         });
