@@ -2,7 +2,7 @@
 
   <img alt="Ouizja logo" src=".github/logo.svg" width="160" height="160" />
   <h1>Ouizja</h1>
-  <p>A high-performance thermal simulation engine developed in Rust with a Kotlin/Compose multiplatform interface.</p>
+  <p>A fast thermal simulation engine with a rust backend and a KMP interface.</p>
 
   <p>
     <a href="https://github.com/Jadiefication/Ouizja"><img alt="GitHub" src="https://img.shields.io/github/v/release/Jadiefication/Ouizja?include_prereleases"></a>
@@ -12,13 +12,13 @@
   </p>
 </div>
 
-Ouizja is a comprehensive thermal simulation platform that combines the performance of Rust with a modern, reactive user interface. It provides:
+Ouizja is a fully fledged thermal simulation that utilizes the speed of Rust with a modern UI. It features:
 
-- **Thermal Simulation Core**: Efficient heat transfer and thermodynamics simulation implemented in Rust.
-- **Multi-threaded Execution**: Leverages `rayon` for parallelizing simulation computations.
-- **JNI Integration**: Seamless communication between the Rust core and the Kotlin environment.
-- **Modern UI**: A desktop application built with Compose Multiplatform for visualization and control.
-- **DSL Simulation**: A domain-specific language for defining and running simulations.
+- **Thermal Simulation Core**: Efficient heat transfer and thermodynamics simulation written in Rust.
+- **Multi-threaded Execution**: Uses `rayon` for parallelizing simulation computations.
+- **JNI Integration**: Easy communication between the Rust backend and the Kotlin environment.
+- **Modern UI**: A desktop app built with Compose Multiplatform for a simple user experience.
+- **DSL Simulation**: A DSL for writing and running simulations.
 
 Quick links
 
@@ -31,23 +31,23 @@ Quick links
 
 ## About the Project
 
-Ouizja is a high-performance 2D thermal simulation engine with its own physics model embeddable in JVM-based applications. It offers a Rust backend for executing the simulation logic and a type-safe DSL on the Kotlin side.
+Ouizja is a speed oriented 2D thermal simulation that uses its own physics model usable in JVM apps through JNI. It runs on a Rust backend and offers a type safe DSL written in Kotlin for the frontend.
 
 ### Why Ouizja?
-- **Hybrid Architecture:** Offers low-level speeds with the developer experience of writing Kotlin.
-- **Parallel Processing:** Utilizes Rust's `rayon` to handle large-scale thermal grids efficiently.
+- **Hybrid Architecture:** Offers low level speeds with the DX of using Kotlin.
+- **Parallel Processing:** Uses Rust's `rayon` for processing large thermal grids efficiently.
 - **Modern Visualization:** Provides a reactive desktop UI built with Compose Multiplatform.
 
 ### Limitations
-Through all that it claims to offer, Ouizja is an evolving project that has these limitations:
-- **2D Grids:** Currently limited to two-dimensional heat transfer simulations.
-- **Memory Bound:** Large grids are limited by available system memory.
+Even with all the stuff that's there to offer, Ouizja still has these limitations:
+- **2D Grids:** Currently limited to 2D heat transfer simulations.
+- **Memory Bound:** Large grids are limited by available RAM.
 - **Discrete Simulation:** Uses a grid-based approach which may not capture all continuous fluid dynamics.
-- **Internal Model:** The physics model is custom-built for performance and may require tuning for specific real-world accuracy.
+- **Internal Model:** The physics model is custom-built for performance and might require tuning for real world accuracy.
 
 ## Demo & Real-World Proof
 
-You can run the Ouizja UI directly to visualize thermal simulations. This allows you to interactively modify parameters and see heat transfer in real-time.
+You can run the UI to visualize thermal simulations. This solution offers a reactive view of the heat transfers and interactive modification of the simulation's parameters.
 
 ### Running the Desktop UI
 
@@ -111,10 +111,10 @@ If you want to run Ouizja to try out the thermal simulation:
 
 ## Code Examples & Programs
 
-To see how to use the DSL, you can check out the test files which showcase how different thermal scenarios can be calculated:
+To see examples of the DSL, you can check out our exhaustive test suite that shows a lot of thermal scenarios and how they're calculated:
 
 - [**SimulationTest.kt**](dsl_sim/lib/src/test/kotlin/io/jadie/sim/SimulationTest.kt): Contains various tests showcasing DSL usage, including wind effects and material properties.
-- [**LargeGridTemperatureTest.kt**](dsl_sim/lib/src/test/kotlin/io/jadie/sim/LargeGridTemperatureTest.kt): Focuses on performance and stability of large-scale simulations.
+- [**LargeGridTemperatureTest.kt**](dsl_sim/lib/src/test/kotlin/io/jadie/sim/LargeGridTemperatureTest.kt): Focuses on performance and stability of large scale simulations.
 
 ## Commands & Scripts
 
@@ -128,10 +128,10 @@ The project uses Cargo and Gradle as its build tools:
 ## Principles
 
 #### Performance
-Utilizes Rust's safety and speed, along with parallel processing, to handle large-scale thermal grids efficiently.
+Utilizes Rust's safety and speed, with parallel processing, to handle large scale thermal grids efficiently.
 
 #### Interoperability
-Focuses on a clean bridge between native performance and high-level application logic using JNI.
+Focuses on a clean bridge between native performance and high level application logic using JNI.
 
 #### Cross-Platform
 Designed with multiplatform support in mind, targeting desktop environments initially.
