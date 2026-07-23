@@ -39,11 +39,10 @@ pub struct Grid {
     winds: Vec<Wind>,
     /// Ambient temperature of the environment.
     t_ambient: f64,
-    t_ambient_fourth: f64
+    t_ambient_fourth: f64,
 }
 
 impl Grid {
-
     /// Creates a new simulation grid.
     pub fn new(
         enthalpies: Vec<f64>,
@@ -69,7 +68,7 @@ impl Grid {
             metadata,
             winds,
             t_ambient,
-            t_ambient_fourth
+            t_ambient_fourth,
         }
     }
 
@@ -78,7 +77,7 @@ impl Grid {
     pub fn run(&mut self, iterations: usize) {
         let max_alpha = self.alpha_mask.iter().copied().fold(0.0f64, f64::max);
 
-        let delta_t = T_SAFE.min(1.0/4.0*max_alpha);
+        let delta_t = T_SAFE.min(1.0 / 4.0 * max_alpha);
         let mut next_field = self.enthalpies.clone();
         let mut next_metadata = self.metadata.clone();
 
@@ -207,7 +206,12 @@ impl Grid {
 
                             let safe_temp = center_val.max(0.0);
 
-                            let dq_rad = f64::vacuum_radiation(material, safe_temp, delta_t, self.t_ambient_fourth);
+                            let dq_rad = f64::vacuum_radiation(
+                                material,
+                                safe_temp,
+                                delta_t,
+                                self.t_ambient_fourth,
+                            );
                             let dq_newton =
                                 f64::newton_cooling(delta_t, safe_temp - self.t_ambient);
 

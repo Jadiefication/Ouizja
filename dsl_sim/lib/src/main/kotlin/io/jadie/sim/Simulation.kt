@@ -168,7 +168,7 @@ class Simulation {
         y: Int,
         kappa: Double,
         index: Int,
-        gamma: Double = 1.0
+        gamma: Double = 1.0,
     ) {
         quantum.addAll(listOf(x.toDouble(), y.toDouble(), kappa, index.toDouble(), gamma))
     }
@@ -349,13 +349,15 @@ data class BuiltSim(
                 val newQuantum =
                     buildList {
                         state.quantum.forEachIndexed { index, value ->
-                            this.addAll(listOf(
-                                value.first.toDouble(),
-                                value.second.toDouble(),
-                                this@BuiltSim.quantum[5 * index + 2],
-                                this@BuiltSim.quantum[5 * index + 3],
-                                value.third
-                            ))
+                            this.addAll(
+                                listOf(
+                                    value.first.toDouble(),
+                                    value.second.toDouble(),
+                                    this@BuiltSim.quantum[5 * index + 2],
+                                    this@BuiltSim.quantum[5 * index + 3],
+                                    value.third,
+                                ),
+                            )
                         }
                     }.toDoubleArray()
 
