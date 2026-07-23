@@ -145,10 +145,34 @@ val buildNative by tasks.registering {
     }
 }
 
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
+
+            groupId = "com.github.Jadiefication"
+            artifactId = "Ouizja"
+            version = project.version.toString()
+
+            pom {
+                name = "Ouizja Thermal simulation"
+                description =
+                    "A fast thermal simulation engine with a rust backend and a KMP interface."
+                url = "https://github.com/Jadiefication/Ouizja"
+                licenses {
+                    license {
+                        name = "The MIT License"
+                        url = "https://opensource.org/licenses/MIT"
+                    }
+                }
+                developers {
+                    developer {
+                        id = "Jadiefication"
+                        name = "Jadie"
+                    }
+                }
+            }
         }
     }
 }
