@@ -12,7 +12,7 @@ import io.jadie.sim.toMaterialArray
  */
 actual fun runSimulation(
     settings: SimSettings,
-    onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int) -> Unit,
+    onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int, Double) -> Unit,
 ) {
     val parser = DslParser()
     val builtSim = parser.parse(settings.dslConfig)
@@ -27,7 +27,7 @@ actual fun runSimulation(
         }
 
     builtSim.run(settings.iterations.toLong()) { it, i ->
-        onUpdate(it.field, materials, i.toInt())
+        onUpdate(it.field, materials, i.toInt(), builtSim.ambient)
         false
     }
 }

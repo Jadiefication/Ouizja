@@ -56,7 +56,7 @@ data class SimSettings(
  */
 expect fun runSimulation(
     settings: SimSettings,
-    onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int) -> Unit,
+    onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int, Double) -> Unit,
 )
 
 /**
@@ -71,23 +71,26 @@ fun App() {
     var isRunning by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(SimSettings()) }
     var gridData by remember(settings.width, settings.height) {
-        mutableStateOf<Array<DoubleArray>>(Array(settings.height) { DoubleArray(settings.width) { settings.globalTemp } })
+        mutableStateOf(Array(settings.height) { DoubleArray(settings.width) { settings.globalTemp } })
     }
     var materialData by remember(settings.width, settings.height) {
-        mutableStateOf<Array<Array<Material>>>(Array(settings.height) { Array(settings.width) { settings.globalMaterial } })
+        mutableStateOf(Array(settings.height) { Array(settings.width) { settings.globalMaterial } })
     }
     var iteration by remember { mutableStateOf(0) }
     var showMaterial by remember { mutableStateOf(false) }
 
     var hoverInfo by remember { mutableStateOf<Triple<Int, Int, Double>?>(null) }
 
+    var ambientTemp by remember { mutableStateOf(293.15) }
+
     LaunchedEffect(isRunning) {
         if (isRunning) {
             withContext(Dispatchers.Default) {
-                runSimulation(settings) { grid, materials, iter ->
+                runSimulation(settings) { grid, materials, iter, ambient ->
                     gridData = grid
                     materialData = materials
                     iteration = iter
+                    ambientTemp = ambient
                 }
             }
             isRunning = false
@@ -198,7 +201,7 @@ fun App() {
                                     hoverInfo = Triple(c, r, (gridData.getOrNull(r)?.getOrNull(c) ?: 0.0))
                                 }
                             } else {
-                                SimulationGrid(gridData) { r, c ->
+                                SimulationGrid(gridData, ambientTemp) { r, c ->
                                     hoverInfo = Triple(c, r, (gridData.getOrNull(r)?.getOrNull(c) ?: 0.0))
                                 }
                             }
@@ -305,6 +308,7 @@ fun materialToColor(material: Material): Color =
 @Composable
 fun SimulationGrid(
     data: Array<DoubleArray>,
+    tAmbient: Double,
     onHover: (Int, Int) -> Unit,
 ) {
     Canvas(
@@ -335,11 +339,12 @@ fun SimulationGrid(
 
         val cellWidth = size.width / cols
         val cellHeight = size.height / rows
+        val max = data.maxOf { row -> row.max() }
 
         for (r in 0 until rows) {
             for (c in 0 until cols) {
                 val temp = data[r][c]
-                val color = temperatureToColor(temp)
+                val color = temperatureToColor(temp, tAmbient, max)
                 drawRect(
                     color = color,
                     topLeft = Offset(c * cellWidth, r * cellHeight),
@@ -350,8 +355,8 @@ fun SimulationGrid(
     }
 }
 
-fun temperatureToColor(temp: Double): Color {
-    val normalized = ((temp - 20.0) / 80.0).coerceIn(0.0, 1.0).toFloat()
+fun temperatureToColor(temp: Double, tAmbient: Double, maxTemp: Double): Color {
+    val normalized = ((temp - tAmbient) / (maxTemp - tAmbient)).coerceIn(0.0, 1.0).toFloat()
     return Color(
         red = normalized,
         green = 1f - normalized,
