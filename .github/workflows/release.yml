@@ -1,0 +1,119 @@
+name: Build and Publish GitHub Release
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-matrix:
+    name: Build Installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            rust-target: aarch64-apple-darwin
+            rust-artifact-name: libOuizja.dylib
+            package-task: packageDmg
+            installer-glob: "OuizjaUI/desktopApp/build/compose/binaries/main/dmg/*.dmg"
+
+          - os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            rust-artifact-name: Ouizja.dll
+            package-task: packageMsi
+            installer-glob: "OuizjaUI/desktopApp/build/compose/binaries/main/msi/*.msi"
+
+          - os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-gnu
+            rust-artifact-name: libOuizja.so
+            package-task: packageDeb
+            installer-glob: "OuizjaUI/desktopApp/build/compose/binaries/main/deb/*.deb"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '21'
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            simulation/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('simulation/Cargo.lock') }}
+
+      # 1. Build Rust FFI Shared Library
+      - name: Build Native Simulation Engine
+        run: cargo build --release --target ${{ matrix.rust-target }}
+        working-directory: simulation
+
+      # 2. Stage Native Library into JVM Resources
+      - name: Stage Shared Library into Gradle Resources
+        shell: bash
+        run: |
+          mkdir -p dsl_sim/lib/src/main/resources/native/
+          mkdir -p OuizjaUI/desktopApp/src/main/resources/native/
+          
+          # Locate built binary (matches libOuizja or libsimulation)
+          SRC_LIB=$(find simulation/target/${{ matrix.rust-target }}/release -maxdepth 1 -type f \( -name "*.dylib" -o -name "*.dll" -o -name "*.so" \) | head -n 1)
+          
+          echo "Copying $SRC_LIB to native resources..."
+          cp "$SRC_LIB" "dsl_sim/lib/src/main/resources/native/${{ matrix.rust-artifact-name }}"
+          cp "$SRC_LIB" "OuizjaUI/desktopApp/src/main/resources/native/${{ matrix.rust-artifact-name }}"
+
+      # 3. Setup Gradle Environment
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # 4. Package Compose Desktop Installer
+      - name: Package Desktop Installer
+        run: ./gradlew ${{ matrix.package-task }} --no-configuration-cache
+        working-directory: OuizjaUI
+
+      # 5. Save Built Installers as CI Artifacts
+      - name: Upload Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ runner.os }}
+          path: ${{ matrix.installer-glob }}
+
+  publish-release:
+    name: Create GitHub Release
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download All Built Installers
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
