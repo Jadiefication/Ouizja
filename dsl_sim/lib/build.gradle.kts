@@ -15,7 +15,7 @@ plugins {
 }
 
 group = "io.jadie.sim"
-version = "1.0-SNAPSHOT"
+version = "0.1.1"
 
 repositories {
     // Use Maven Central for resolving dependencies.
