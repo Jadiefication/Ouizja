@@ -15,35 +15,56 @@ use std::cmp::Ordering::Equal;
 const T_SAFE: f64 = 0.001;
 
 /// The main simulation grid containing all cells and global properties.
+///
+/// The `Grid` struct represents a 2D field where thermal simulation occurs.
+/// It stores enthalpies, material metadata, and quantum properties in a flat-vector format
+/// to optimize for memory locality and parallel processing.
+///
+/// # Field Layout
+/// The grid is stored in a column-major or row-major flat vector depending on indexing,
+/// but generally, `index = x * height + y`.
 pub struct Grid {
-    /// Width of the grid.
+    /// Width of the grid (number of columns).
     length: usize,
-    /// Height of the grid.
+    /// Height of the grid (number of rows).
     height: usize,
 
-    /// Flat collection of all cells in the grid.
-    //pub cells: Vec<Cell>,
+    /// Flat collection of all cells' enthalpy values (J).
+    /// Enthalpy is used as the primary state variable to handle phase changes correctly.
     pub enthalpies: Vec<f64>,
+    /// Pre-calculated thermal diffusivity coefficients for each cell.
     pub alpha_mask: Vec<f64>,
+    /// Indices into the `quantum` vector for cells that have quantum properties.
+    /// A value of -1 indicates no quantum property for that cell.
     pub quantum_indices: Vec<isize>,
+    /// Collection of quantum state objects for specific cells.
     pub quantum: Vec<Quantum>,
-    /// pub material_mask: Vec<Material>,
-    /// pub source_mask: Vec<bool>,
-    /// pub status_mask: Vec<Status>,
-    /// Collapses into this
-    /// 1st Bit - Source
-    /// 2nd - 4th Bits - Status
-    /// 5th - 9th Bits - Material
+    /// Collapsed metadata for each cell.
+    /// 
+    /// Bit layout:
+    /// - Bit 0: Source flag (1 if constant heat source, 0 otherwise).
+    /// - Bits 1-3: Physical [`Status`] ID.
+    /// - Bits 4-8: [`Material`] ID.
     pub metadata: Vec<u16>,
-    /// Collection of wind vectors affecting the simulation.
+    /// Collection of wind vectors affecting the simulation globally or locally.
     winds: Vec<Wind>,
-    /// Ambient temperature of the environment.
+    /// Ambient temperature of the environment (K).
     t_ambient: f64,
+    /// Pre-calculated T_ambient^4 for radiation calculations.
     t_ambient_fourth: f64,
 }
 
 impl Grid {
-    /// Creates a new simulation grid.
+    /// Creates a new simulation grid with the provided initial state.
+    ///
+    /// # Arguments
+    /// * `enthalpies` - Initial enthalpy values for each cell.
+    /// * `alpha_mask` - Diffusivity mask.
+    /// * `quantum_indices` - Mapping from grid cells to quantum objects.
+    /// * `quantum` - List of active quantum properties.
+    /// * `metadata` - Encoded material and status information.
+    /// * `winds` - Initial wind conditions.
+    /// * `grid_info` - A tuple of (length, height, ambient_temperature).
     pub fn new(
         enthalpies: Vec<f64>,
         alpha_mask: Vec<f64>,
@@ -73,7 +94,19 @@ impl Grid {
     }
 
     /// Executes the simulation for a given number of iterations.
-    /// Uses parallel processing for cell updates.
+    /// 
+    /// This method performs the core physics calculation, including:
+    /// 1. Conduction using a 2D Laplacian.
+    /// 2. Advection/Convection based on wind and buoyancy.
+    /// 3. Radiation loss (Stefan-Boltzmann).
+    /// 4. Newton's law of cooling for ambient interaction.
+    /// 5. Phase change logic (solid <-> liquid <-> gas).
+    /// 6. Quantum property decay.
+    ///
+    /// The simulation uses Rayon for parallel iteration over grid chunks (rows).
+    /// 
+    /// # Arguments
+    /// * `iterations` - The number of time steps to simulate.
     pub fn run(&mut self, iterations: usize) {
         let max_alpha = self.alpha_mask.iter().copied().fold(0.0f64, f64::max);
 

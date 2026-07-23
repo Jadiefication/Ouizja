@@ -5,15 +5,38 @@ import io.jadie.SimState
 import org.spongepowered.noise.module.NoiseModule
 
 /**
- * DSL class for configuring a simulation.
+ * DSL class for configuring a 2D thermal simulation.
+ * 
+ * This class provides a builder-style interface to define grid dimensions,
+ * initial temperatures, material distributions, heat sources, and environmental factors
+ * like wind and quantum dissipation.
+ *
+ * Example usage:
+ * ```kotlin
+ * val mySim = simulate {
+ *     grid(256, 256)
+ *     globalMaterial(Material.AIR)
+ *     globalTemperature(293.15)
+ *     material(Material.COPPER, 100, 150, 100, 150)
+ *     source(125, 125)
+ *     wind(Pair(1.0, 0.0), 300.0)
+ * }
+ * ```
  */
 class Simulation {
+    /** The number of columns in the grid. Defaults to 256. */
     var length = 256
+    /** The number of rows in the grid. Defaults to 256. */
     var height = 256
+    /** Flattened list of materials for each cell. Initialized during building. */
     var materialMask = mutableListOf<Material>()
+    /** Flattened list of temperatures (Kelvin) for each cell. Initialized during building. */
     var temps = mutableListOf<Double>()
+    /** Flattened list indicating whether each cell is a constant heat source. */
     var sourceMask = mutableListOf<Boolean>()
+    /** Flattened list of quantum properties (x, y, kappa, index, gamma). */
     var quantum = mutableListOf<Double>()
+    /** Flattened list of wind vectors (force_x, force_y, temp). */
     val winds = mutableListOf<Double>()
 
     /**
@@ -23,6 +46,9 @@ class Simulation {
 
     /**
      * Sets the grid dimensions.
+     * 
+     * @param length The width (number of columns).
+     * @param height The height (number of rows).
      */
     fun grid(
         length: Int,
@@ -34,6 +60,8 @@ class Simulation {
 
     /**
      * Sets the material for the entire grid.
+     * 
+     * @param material The [Material] to apply to every cell.
      */
     fun globalMaterial(material: Material) {
         materialMask = MutableList(length * height) { material }
@@ -41,6 +69,12 @@ class Simulation {
 
     /**
      * Sets the material for a specific rectangular area.
+     * 
+     * @param material The [Material] to apply.
+     * @param fromX The starting column (inclusive).
+     * @param toX The ending column (inclusive).
+     * @param fromY The starting row (inclusive).
+     * @param toY The ending row (inclusive).
      */
     fun material(
         material: Material,
@@ -69,6 +103,8 @@ class Simulation {
 
     /**
      * Sets the temperature for the entire grid.
+     * 
+     * @param temp The temperature in Kelvin.
      */
     fun globalTemperature(temp: Double) {
         temps = MutableList(length * height) { temp }
@@ -76,6 +112,10 @@ class Simulation {
 
     /**
      * Sets the temperature at a specific cell.
+     * 
+     * @param temp The temperature in Kelvin.
+     * @param x The column index.
+     * @param y The row index.
      */
     fun temp(
         temp: Double,
@@ -93,6 +133,12 @@ class Simulation {
 
     /**
      * Sets the temperature for a specific rectangular area.
+     * 
+     * @param temp The temperature in Kelvin.
+     * @param fromX The starting column (inclusive).
+     * @param toX The ending column (inclusive).
+     * @param fromY The starting row (inclusive).
+     * @param toY The ending row (inclusive).
      */
     fun temp(
         temp: Double,
@@ -121,6 +167,13 @@ class Simulation {
 
     /**
      * Adds a heat barrier in a specific rectangular area.
+     * 
+     * Barriers have zero diffusivity, effectively insulating the area.
+     * 
+     * @param fromX The starting column (inclusive).
+     * @param toX The ending column (inclusive).
+     * @param fromY The starting row (inclusive).
+     * @param toY The ending row (inclusive).
      */
     fun barrier(
         fromX: Int,
@@ -133,6 +186,11 @@ class Simulation {
 
     /**
      * Marks a specific cell as a heat source.
+     * 
+     * Sources maintain their temperature regardless of heat transfer from neighbors.
+     * 
+     * @param x The column index.
+     * @param y The row index.
      */
     fun source(
         x: Int,
@@ -161,7 +219,15 @@ class Simulation {
     }
 
     /**
-     * Configures a quantum superposition effect.
+     * Configures a quantum superposition effect for a specific cell.
+     *
+     * Quantum cells exhibit non-linear heat decay, simulating complex dissipation models.
+     *
+     * @param x The column index.
+     * @param y The row index.
+     * @param kappa The dissipation coefficient.
+     * @param index The temperature exponent for decay calculation.
+     * @param gamma The initial intensity of the quantum effect.
      */
     fun superposition(
         x: Int,
@@ -175,6 +241,11 @@ class Simulation {
 
     /**
      * Sets cells within a circular area as heat sources or sinks.
+     * 
+     * @param centerX The center column.
+     * @param centerY The center row.
+     * @param radius The radius of the circle in grid units.
+     * @param source Whether the cells should be heat sources (`true`) or not (`false`).
      */
     fun circle(
         centerX: Int,
@@ -199,6 +270,14 @@ class Simulation {
         }
     }
 
+    /**
+     * Sets the temperature for cells within a circular area.
+     * 
+     * @param centerX The center column.
+     * @param centerY The center row.
+     * @param radius The radius of the circle in grid units.
+     * @param temp The temperature in Kelvin.
+     */
     fun circle(
         centerX: Int,
         centerY: Int,
@@ -224,6 +303,11 @@ class Simulation {
 
     /**
      * Sets the material for cells within a circular area.
+     * 
+     * @param centerX The center column.
+     * @param centerY The center row.
+     * @param radius The radius of the circle in grid units.
+     * @param material The [Material] to apply.
      */
     fun circle(
         centerX: Int,
@@ -289,9 +373,21 @@ class Simulation {
     fun size(): Int = length * height
 }
 
-/**
- * A built and ready-to-run simulation instance.
- */
+    /**
+     * A built and ready-to-run simulation instance.
+     * 
+     * This class contains all the configuration data required by the native Rust engine.
+     * It provides methods to execute the simulation steps.
+     * 
+     * @property height Grid height.
+     * @property length Grid width.
+     * @property sourceMask Boolean mask for heat sources.
+     * @property materialMask Integer mask of [Material] IDs.
+     * @property quantum Flattened quantum property array.
+     * @property winds Flattened wind vector array.
+     * @property temps Current temperature field (flattened).
+     * @property ambient Ambient environment temperature.
+     */
 data class BuiltSim(
     val height: Int,
     val length: Int,
@@ -304,6 +400,11 @@ data class BuiltSim(
 ) {
     /**
      * Runs the simulation for a specified number of iterations and returns the final state.
+     * 
+     * This method invokes the native Rust engine via JNI.
+     * 
+     * @param iterations Number of simulation time steps to run.
+     * @return The resulting [SimState] after execution.
      */
     fun run(iterations: Long): SimState {
         val sim =
@@ -325,7 +426,13 @@ data class BuiltSim(
 
     /**
      * Runs the simulation in steps, executing the predicate after each step.
-     * Stops if the predicate returns true.
+     * 
+     * Stops if the predicate returns `true`. This allows for observing intermediate states
+     * or implementing early-exit conditions (e.g., reaching thermal equilibrium).
+     * 
+     * @param iterations Maximum number of steps to run.
+     * @param predicate A function called with the current [SimState] and step number.
+     *                  Returns `true` to stop the simulation.
      */
     fun run(
         iterations: Long,

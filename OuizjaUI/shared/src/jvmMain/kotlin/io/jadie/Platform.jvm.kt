@@ -4,6 +4,12 @@ import io.jadie.sim.Material
 import io.jadie.sim.simulate
 import io.jadie.sim.toMaterialArray
 
+/**
+ * JVM implementation of the simulation runner.
+ * 
+ * This function parses the DSL configuration from [settings], builds the simulation,
+ * and executes it in a loop, providing updates to the UI via [onUpdate].
+ */
 actual fun runSimulation(
     settings: SimSettings,
     onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int) -> Unit,

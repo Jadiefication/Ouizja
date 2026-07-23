@@ -1,39 +1,42 @@
 package io.jadie.sim
 
 /**
- * Represents the physical state of a cell in the simulation.
+ * Represents the physical state (phase) of a cell in the simulation.
+ * 
+ * The simulation tracks transitions between these states based on enthalpy and 
+ * material thermal properties.
  */
 enum class Type {
     /**
-     * Solid state.
+     * Solid state. Stationary, heat moves primarily by conduction.
      */
     SOLID {
         override val id: Int = 0
     },
 
     /**
-     * Transitioning from solid to fluid.
+     * Transitioning from solid to fluid (latent heat of fusion being absorbed).
      */
     FUSING {
         override val id: Int = 3
     },
 
     /**
-     * Fluid state.
+     * Fluid state. Subject to advection and convection.
      */
     FLUID {
         override val id: Int = 1
     },
 
     /**
-     * Transitioning from fluid to gas.
+     * Transitioning from fluid to gas (latent heat of vaporization being absorbed).
      */
     VAPORIZING {
         override val id: Int = 4
     },
 
     /**
-     * Gas state.
+     * Gas state. Highly mobile, subject to wind and buoyant forces.
      */
     GAS {
         override val id: Int = 2

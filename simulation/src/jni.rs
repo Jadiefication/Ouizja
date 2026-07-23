@@ -13,9 +13,28 @@ use jni::sys::{jdouble, jint, jlong};
 use jni::{EnvUnowned, JValue, jni_sig, jni_str};
 
 /// JNI entry point to create a new simulation instance.
-/// Returns a raw pointer to the `Grid` object as a `jlong`.
+///
+/// This function allocates a new [`Grid`] on the heap and returns its raw pointer to the Kotlin side.
+/// The Kotlin wrapper should store this pointer and pass it back for subsequent operations.
+///
+/// # Arguments
+/// * `env_unowned` - The JNI environment.
+/// * `_class` - The Kotlin class calling this method.
+/// * `temps` - A 1D double array containing initial temperatures for each cell.
+/// * `sourceMask` - A 1D boolean array indicating if a cell is a constant heat source.
+/// * `materialMask` - A 1D int array containing [`Material`] IDs for each cell.
+/// * `quantum` - A 1D double array representing quantum properties (flattened `[x, y, kappa, index, gamma]` chunks).
+/// * `winds` - A 1D double array representing wind forces (flattened `[force_x, force_y, temp]` chunks).
+/// * `length` - Grid width.
+/// * `height` - Grid height.
+/// * `tAmbient` - Ambient environment temperature.
+///
+/// # Returns
+/// A `jlong` representing the raw pointer to the allocated [`Grid`].
+///
 /// # Safety
-/// Because of this being an FFI function, this function is safe
+/// This function is unsafe because it performs raw pointer manipulation and interacts with JNI.
+/// The caller (Kotlin) is responsible for eventually calling `freeSim` to avoid memory leaks.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
@@ -160,9 +179,24 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_createSim<'caller>(
 }
 
 /// JNI entry point to run the simulation for a specified number of iterations.
-/// Returns a `SimState` object containing the results.
+///
+/// This function executes the thermal simulation logic for the given number of steps
+/// and then collects the updated grid state to return to Kotlin.
+///
+/// # Arguments
+/// * `env_unowned` - The JNI environment.
+/// * `_class` - The Kotlin class calling this method.
+/// * `iterations` - Number of simulation steps to run.
+/// * `pointer` - The raw pointer to the [`Grid`] instance (from `createSim`).
+/// * `length` - Grid width.
+/// * `height` - Grid height.
+///
+/// # Returns
+/// A `SimState` Kotlin object containing the updated temperatures, quantum states, and cell phases.
+///
 /// # Safety
-/// Because of this being an FFI function, this function is safe
+/// This function is unsafe because it dereferences the provided raw pointer.
+/// Passing an invalid or null pointer will cause a panic or undefined behavior.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
     mut env_unowned: EnvUnowned<'caller>,
@@ -306,8 +340,18 @@ pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_runSim<'caller>(
 }
 
 /// JNI entry point to free the memory allocated for the simulation instance.
+///
+/// This function takes a raw pointer to a [`Grid`], reconstructs the `Box`,
+/// and lets it drop, thereby freeing the heap memory.
+///
+/// # Arguments
+/// * `_env_unowned` - The JNI environment.
+/// * `_class` - The Kotlin class calling this method.
+/// * `pointer` - The raw pointer to the [`Grid`] instance to free.
+///
 /// # Safety
-/// Because of this being an FFI function, this function is safe
+/// This function is unsafe because it dereferences a raw pointer.
+/// It MUST be called exactly once for every pointer returned by `createSim`.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_io_jadie_OuizjaLoader_freeSim(
     _env_unowned: EnvUnowned,

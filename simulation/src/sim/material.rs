@@ -4,18 +4,29 @@ use crate::sim::material::Material::{
 };
 
 /// Enumerates the different materials available in the simulation.
+///
+/// Each material has unique [`ThermalProperties`] that define how it responds to heat,
+/// its phase transition temperatures, and its emissivity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Material {
+    /// Highly conductive metal.
     Copper = 0,
+    /// Common volatile liquid.
     Water = 1,
+    /// Organic insulating material.
     Wood = 2,
+    /// Lightweight conductive metal.
     Aluminum = 3,
+    /// Common structural metal.
     Iron = 4,
+    /// Transparent insulating material.
     Glass = 5,
+    /// Natural mineral material.
     Stone = 6,
+    /// Atmospheric gas.
     Air = 7,
-    /// A heat barrier with zero diffusivity.
+    /// A heat barrier with zero diffusivity. Used to bound the simulation.
     Barrier = 8,
 }
 

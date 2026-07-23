@@ -17,6 +17,16 @@ import io.jadie.sim.Material
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/**
+ * Configuration settings for the UI simulation view.
+ * 
+ * @property width Grid width (number of columns).
+ * @property height Grid height (number of rows).
+ * @property globalTemp Initial temperature for all cells (°C).
+ * @property globalMaterial Default material for all cells.
+ * @property iterations Number of simulation steps to run per execution.
+ * @property dslConfig The raw DSL string defining the simulation.
+ */
 data class SimSettings(
     val width: Int = 50,
     val height: Int = 50,
@@ -34,11 +44,27 @@ data class SimSettings(
         """.trimIndent(),
 )
 
+/**
+ * Runs the thermal simulation based on the provided [settings].
+ * 
+ * This function is expected to be implemented in platform-specific code (e.g., `jvmMain`).
+ * It handles the creation and execution of the simulation and reports updates back to the UI.
+ * 
+ * @param settings The configuration for the simulation.
+ * @param onUpdate Callback function invoked with the updated temperature field, material field, 
+ *                 and current iteration count.
+ */
 expect fun runSimulation(
     settings: SimSettings,
     onUpdate: (Array<DoubleArray>, Array<Array<Material>>, Int) -> Unit,
 )
 
+/**
+ * The main Compose Multiplatform entry point for the Ouizja UI.
+ * 
+ * This component provides a side panel for DSL configuration and simulation control,
+ * and a main area for visualizing the thermal or material grid.
+ */
 @Composable
 @Preview
 fun App() {
@@ -203,6 +229,12 @@ private fun Modifier.dividerSpacerHeight() = this.height(16.dp)
 
 fun Double.format(digits: Int) = this.toString()
 
+/**
+ * A Compose component that renders a grid based on the cell [Material].
+ * 
+ * @param data 2D array of [Material] for each cell.
+ * @param onHover Callback invoked with (row, column) when the mouse hovers over a cell.
+ */
 @Composable
 fun MaterialGrid(
     data: Array<Array<Material>>,
@@ -264,6 +296,12 @@ fun materialToColor(material: Material): Color =
         Material.BARRIER -> Color.Black
     }
 
+/**
+ * A Compose component that renders a grid based on cell temperatures.
+ * 
+ * @param data 2D array of temperature values for each cell.
+ * @param onHover Callback invoked with (row, column) when the mouse hovers over a cell.
+ */
 @Composable
 fun SimulationGrid(
     data: Array<DoubleArray>,
