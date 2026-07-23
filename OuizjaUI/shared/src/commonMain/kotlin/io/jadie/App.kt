@@ -215,7 +215,7 @@ fun App() {
                                 modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
                             ) {
                                 Text(
-                                    text = "X: $x, Y: $y | Temp: ${temp.format(2)}°C | Material: $mat",
+                                    text = "X: $x, Y: $y | Temp: ${temp.format(2)}K | Material: $mat",
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(8.dp),
                                 )
