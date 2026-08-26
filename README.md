@@ -26,6 +26,7 @@ Quick links
 - Support: [SUPPORT.md](SUPPORT.md)
 - License: MIT ([LICENSE](LICENSE))
 - Repository: [GitHub](https://github.com/Jadiefication/Ouizja)
+- Wiki: [Wiki](.github/wiki/Home.md)
 
 ## About the Project
 
