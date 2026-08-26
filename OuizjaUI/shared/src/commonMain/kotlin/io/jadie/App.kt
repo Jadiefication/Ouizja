@@ -35,7 +35,7 @@ data class SimSettings(
     val iterations: Int = 100,
     val dslConfig: String =
         """
-        simulation {
+        simulate {
             grid(50, 50)
             globalMaterial(Material.IRON)
             globalTemperature(20.0)
