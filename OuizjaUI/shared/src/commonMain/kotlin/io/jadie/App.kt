@@ -86,18 +86,27 @@ fun App() {
     var hoverInfo by remember { mutableStateOf<Triple<Int, Int, Double>?>(null) }
 
     var ambientTemp by remember { mutableStateOf(293.15) }
+
+    var exception by remember { mutableStateOf<Exception?>(null) }
+
     val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(isRunning) {
-        if (isRunning) {
-            withContext(Dispatchers.Default) {
-                runSimulation(settings) { grid, materials, iter, ambient ->
-                    gridData = grid
-                    materialData = materials
-                    iteration = iter
-                    ambientTemp = ambient
+        try {
+            if (isRunning) {
+                exception = null
+                withContext(Dispatchers.Default) {
+                    runSimulation(settings) { grid, materials, iter, ambient ->
+                        gridData = grid
+                        materialData = materials
+                        iteration = iter
+                        ambientTemp = ambient
+                    }
                 }
+                isRunning = false
             }
+        } catch (e: Exception) {
+            exception = e
             isRunning = false
         }
     }
@@ -188,7 +197,7 @@ fun App() {
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(text = "View Mode", style = MaterialTheme.typography.titleSmall)
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
                             selected = !showMaterial,
                             onClick = { showMaterial = false },
@@ -223,15 +232,29 @@ fun App() {
                             }
                         }
 
-                        hoverInfo?.let { (x, y, temp) ->
-                            val mat = materialData.getOrNull(y)?.getOrNull(x) ?: Material.BARRIER
+                        if (exception == null) {
+                            hoverInfo?.let { (x, y, temp) ->
+                                val mat = materialData.getOrNull(y)?.getOrNull(x) ?: Material.BARRIER
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+                                ) {
+                                    Text(
+                                        text = "X: $x, Y: $y | Temp: ${temp.format(2)}K | Material: $mat",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(8.dp),
+                                    )
+                                }
+                            }
+                        } else {
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                                 shape = MaterialTheme.shapes.medium,
                                 modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
                             ) {
                                 Text(
-                                    text = "X: $x, Y: $y | Temp: ${temp.format(2)}K | Material: $mat",
+                                    text = "${exception!!.localizedMessage}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(8.dp),
                                 )
