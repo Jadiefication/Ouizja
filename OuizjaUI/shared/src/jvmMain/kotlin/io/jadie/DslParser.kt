@@ -25,7 +25,7 @@ class DslParser {
         val engine = ScriptEngineManager().getEngineByExtension("kts")
 
         var cleanedConfig = dslConfig.trim()
-        if (cleanedConfig.startsWith("simulation")) {
+        if (cleanedConfig.startsWith("simulate")) {
             cleanedConfig = cleanedConfig.substringAfter("{").substringBeforeLast("}")
         }
 
