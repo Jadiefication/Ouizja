@@ -2,8 +2,8 @@ package io.jadie.sim
 
 /**
  * Represents the physical state (phase) of a cell in the simulation.
- * 
- * The simulation tracks transitions between these states based on enthalpy and 
+ *
+ * The simulation tracks transitions between these states based on enthalpy and
  * material thermal properties.
  */
 enum class Type {

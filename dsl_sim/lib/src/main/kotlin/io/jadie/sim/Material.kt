@@ -2,7 +2,7 @@ package io.jadie.sim
 
 /**
  * Defines the materials available for cells in the simulation.
- * 
+ *
  * Each material has a default [Type] (physical state) and a [diffusivity] coefficient
  * that determines how quickly heat spreads through it.
  */
@@ -12,36 +12,43 @@ enum class Material {
         override val type: Type = Type.SOLID
         override val id: Int = 0
     },
+
     /** Common volatile liquid. */
     WATER {
         override val type: Type = Type.FLUID
         override val id: Int = 1
     },
+
     /** Organic insulating material. */
     WOOD {
         override val type: Type = Type.SOLID
         override val id: Int = 2
     },
+
     /** Lightweight conductive metal. */
     ALUMINUM {
         override val type: Type = Type.SOLID
         override val id: Int = 3
     },
+
     /** Common structural metal. */
     IRON {
         override val type: Type = Type.SOLID
         override val id: Int = 4
     },
+
     /** Transparent insulating material. */
     GLASS {
         override val type: Type = Type.SOLID
         override val id: Int = 5
     },
+
     /** Natural mineral material. */
     STONE {
         override val type: Type = Type.SOLID
         override val id: Int = 6
     },
+
     /** Atmospheric gas. */
     AIR {
         override val type: Type = Type.GAS
@@ -50,7 +57,7 @@ enum class Material {
 
     /**
      * A material that acts as a heat barrier (diffusivity = 0).
-     * 
+     *
      * Used for bounding the simulation or creating perfectly insulated regions.
      */
     BARRIER {

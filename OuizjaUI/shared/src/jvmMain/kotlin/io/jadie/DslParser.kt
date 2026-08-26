@@ -7,16 +7,16 @@ import javax.script.ScriptEngineManager
 
 /**
  * Utility for parsing and executing Kotlin DSL simulation configurations at runtime.
- * 
+ *
  * This parser uses the Kotlin Scripting engine to evaluate DSL strings and convert them
  * into [BuiltSim] instances.
  */
 class DslParser {
     /**
      * Parses a Kotlin DSL configuration string into a [BuiltSim].
-     * 
+     *
      * The input string can optionally be wrapped in a `simulation { ... }` block.
-     * 
+     *
      * @param dslConfig The DSL configuration as a string.
      * @return A [BuiltSim] instance ready to be run.
      * @throws javax.script.ScriptException if the script contains syntax errors or invalid DSL calls.

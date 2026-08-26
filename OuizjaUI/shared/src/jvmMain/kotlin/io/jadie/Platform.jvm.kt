@@ -6,7 +6,7 @@ import io.jadie.sim.toMaterialArray
 
 /**
  * JVM implementation of the simulation runner.
- * 
+ *
  * This function parses the DSL configuration from [settings], builds the simulation,
  * and executes it in a loop, providing updates to the UI via [onUpdate].
  */

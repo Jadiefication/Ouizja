@@ -40,7 +40,7 @@ pub struct Grid {
     /// Collection of quantum state objects for specific cells.
     pub quantum: Vec<Quantum>,
     /// Collapsed metadata for each cell.
-    /// 
+    ///
     /// Bit layout:
     /// - Bit 0: Source flag (1 if constant heat source, 0 otherwise).
     /// - Bits 1-3: Physical [`Status`] ID.
@@ -94,7 +94,7 @@ impl Grid {
     }
 
     /// Executes the simulation for a given number of iterations.
-    /// 
+    ///
     /// This method performs the core physics calculation, including:
     /// 1. Conduction using a 2D Laplacian.
     /// 2. Advection/Convection based on wind and buoyancy.
@@ -104,7 +104,7 @@ impl Grid {
     /// 6. Quantum property decay.
     ///
     /// The simulation uses Rayon for parallel iteration over grid chunks (rows).
-    /// 
+    ///
     /// # Arguments
     /// * `iterations` - The number of time steps to simulate.
     pub fn run(&mut self, iterations: usize) {
