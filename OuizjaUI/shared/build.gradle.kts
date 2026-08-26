@@ -17,6 +17,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation("androidx.compose.material:material-icons-extended:1.7.8")
         }
         jvmMain.dependencies {
             implementation("io.jadie.sim:lib:1.0-SNAPSHOT")

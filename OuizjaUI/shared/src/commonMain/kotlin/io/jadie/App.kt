@@ -1,16 +1,20 @@
 package io.jadie
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.outlined.Help
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.jadie.sim.Material
@@ -82,6 +86,7 @@ fun App() {
     var hoverInfo by remember { mutableStateOf<Triple<Int, Int, Double>?>(null) }
 
     var ambientTemp by remember { mutableStateOf(293.15) }
+    val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(isRunning) {
         if (isRunning) {
@@ -148,7 +153,18 @@ fun App() {
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "DSL Configuration", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "DSL Configuration", style = MaterialTheme.typography.titleSmall)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(onClick = {
+                            uriHandler.openUri("https://github.com/Jadiefication/Ouizja/blob/main/.github/wiki/Home.md")
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Default.Help,
+                                contentDescription = "Help for Ouizja"
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = settings.dslConfig,
@@ -364,3 +380,5 @@ fun temperatureToColor(temp: Double, tAmbient: Double, maxTemp: Double): Color {
         alpha = 1f,
     )
 }
+
+
