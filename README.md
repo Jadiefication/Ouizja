@@ -18,6 +18,8 @@ Ouizja is a project that utilizes a Rust backend alongside with a KMP UI to show
 - **Seamless JNI Integration**: Simple use of the Rust core in JVM applications with its DSL.
 - **Modern UI**: An app to visualize the termal engine built with KMP.
 
+![Ouizja Demo](.github/demo_screenshot.png)
+
 Quick links
 
 - Security policy: [SECURITY.md](SECURITY.md)
